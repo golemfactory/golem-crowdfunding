@@ -85,12 +85,6 @@ contract StandardToken is ERC20TokenInterface {
 
 contract GolemNetworkToken is StandardToken {
 
-    function () {
-        // TODO: I think this is default in solidity 0.4
-        //if ether is sent to this address, send it back.
-        throw;
-    }
-
     /* Public variables of the token */
 
     /*
@@ -100,19 +94,63 @@ contract GolemNetworkToken is StandardToken {
     Some wallets/interfaces might not even bother to look at this information.
     */
 
-    uint256 constant supply = 1;
+    uint256 supply = 0;
     string public constant name = "Golem Network Token";
     uint8 public constant decimals = 1;
     string public constant symbol = "GNT";
+    
+    // TODO: Organize the funding it the way it zeros additional data
+    //       when finished.
+    
+    bool fundingNotFinalized = true;
+    uint256 constant fundingMax = 847457627118644067796611;
+    uint256 constant fundingMin = 84745762711864406779661;
+    uint256 constant fundingStart = 2500000;
+    uint256 constant fundingEnd = fundingStart + 200000;
+    uint256 constant singleFunding = 10000 ether;
 
     string public constant version = 'H0.1';       //human 0.1 standard. Just an arbitrary versioning scheme.
 
-    function GolemNetworkToken(uint256 _initialAmount) {
-        balances[msg.sender] = _initialAmount;               // Give the creator all initial tokens
+    address founder;
+
+    function GolemNetworkToken(address _founder) {
+        founder = _founder;
     }
 
     function totalSupply() constant returns (uint256 supply) {
         return supply;
+    }
+    
+    function generateTokens() returns (bool success) {
+        if (block.number < fundingStart) throw;
+        if (block.number > fundingEnd) throw;
+        
+        var n = msg.value;
+        if (n == 0) throw;
+        if (n > singleFunding) throw;
+        
+        var tokensLeft = fundingMax - supply;
+        if (n > tokensLeft) throw; // ?
+        
+        balances[msg.sender] += n;
+        supply += n;
+        // TODO: send ethers to the Founder.
+    }
+    
+    function finalizeFunding() {
+        if (!fundingNotFinalized) throw;
+        if (msg.sender != founder) throw;
+        if (block.number <= fundingEnd) throw;
+        
+        // Generate additional tokens for Founder.
+        var additionalTokens = supply * 118 / 100;
+        balances[founder] += additionalTokens;
+        supply += additionalTokens;
+        
+        // Cleanup
+        delete founder;
+        fundingNotFinalized = false;  // Using founder as an indicator is enough?
+        
     }
 
     /* Approves and then calls the receiving contract */
