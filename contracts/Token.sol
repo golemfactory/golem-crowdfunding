@@ -100,7 +100,7 @@ contract GolemNetworkToken is StandardToken {
 
     uint256 supply = 0;
     string public constant name = "Golem Network Token";
-    uint8 public constant decimals = 1;
+    uint8 public constant decimals = 10^18; // TODO
     string public constant symbol = "GNT";
 
     uint256 constant fundingMax = 847457627118644067796611;
@@ -147,6 +147,7 @@ contract GolemNetworkToken is StandardToken {
         // Assigne new tokens to the sender
         balances[msg.sender] += numTokens;
         supply += numTokens;
+        // TODO: Add event?
     }
 
     // Finalize the funding period
@@ -174,6 +175,7 @@ contract GolemNetworkToken is StandardToken {
         // Also zero the founder address to indicate that funding has been
         // finalized.
         delete founder;
+        // founder = 0;
         delete fundingStart;
         delete fundingEnd;
     }
@@ -195,10 +197,13 @@ contract GolemNetworkToken is StandardToken {
 
         uint256 value = balances[msg.sender];
         balances[msg.sender] = 0;
+
+        // TODO: Check how much gas is sent and if it always enough.
         if (!msg.sender.send(value)) throw;
     }
 
     /* Approves and then calls the receiving contract */
+    // FIXME: Remove it?
     function approveAndCall(address _spender, uint256 _value, bytes _extraData) returns (bool success) {
         allowed[msg.sender][_spender] = _value;
         Approval(msg.sender, _spender, _value);
