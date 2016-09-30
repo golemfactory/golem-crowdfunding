@@ -103,15 +103,10 @@ contract GolemNetworkToken is StandardToken {
     uint8 public constant decimals = 1;
     string public constant symbol = "GNT";
 
-    // TODO: Organize the funding it the way it zeros additional data
-    //       when finished.
-
-    bool fundingNotFinalized = true;
     uint256 constant fundingMax = 847457627118644067796611;
     uint256 constant fundingMin = 84745762711864406779661;
     uint256 fundingStart;
     uint256 fundingEnd;
-
     address founder;
 
     function GolemNetworkToken(address _founder, uint256 _fundingStart,
@@ -154,11 +149,17 @@ contract GolemNetworkToken is StandardToken {
         supply += numTokens;
     }
 
+    // Finalize the funding period
     function finalizeFunding() external {
-        // FIXME: Add case when below minimum funding.
-        if (!fundingNotFinalized) throw;
+        // This check redundant to the next one. Not sure if the future ethereum
+        // changes will not introduce special messages coming from address 0.
+        if (founder == 0) throw;
         if (msg.sender != founder) throw;
         if (block.number <= fundingEnd) throw;
+
+        // Allowed only if the minimum funding reached. Otherwise the founder
+        // must allow funders to get theirs ether back (so not cleanup either).
+        if (supply < fundingMin) throw;
 
         // Send ether to the Founder.
         if (!founder.send(msg.value)) throw;
@@ -169,12 +170,12 @@ contract GolemNetworkToken is StandardToken {
         balances[founder] += additionalTokens;
         supply += additionalTokens;
 
-        // Cleanup
+        // Cleanup. Remove all data not needed any more.
+        // Also zero the founder address to indicate that funding has been
+        // finalized.
         delete founder;
         delete fundingStart;
         delete fundingEnd;
-        // TODO: Using founder as an indicator is enough?
-        fundingNotFinalized = false;
     }
 
     // Allows a funder to get ones ether back in case the funding minimum has
@@ -183,7 +184,7 @@ contract GolemNetworkToken is StandardToken {
     // Low priority.
     function sendFundsBack() external {
         // TODO: We can also create a function sendFundsBackFor(address).
-        // FIXME: See consern about transfering tokens during the funding
+        // FIXME: See concern about transfering tokens during the funding
         //        period in transfer().
 
         // Only after the funding period.
