@@ -96,6 +96,8 @@ contract GolemNetworkToken is StandardToken {
     Some wallets/interfaces might not even bother to look at this information.
     */
 
+    string public standard = 'Token 0.1';
+
     uint256 supply = 0;
     string public constant name = "Golem Network Token";
     uint8 public constant decimals = 1;
@@ -109,9 +111,6 @@ contract GolemNetworkToken is StandardToken {
     uint256 constant fundingMin = 84745762711864406779661;
     uint256 fundingStart;
     uint256 fundingEnd;
-    uint256 constant singleFunding = 10000 ether;
-
-    string public constant version = 'H0.1';       //human 0.1 standard. Just an arbitrary versioning scheme.
 
     address founder;
 
