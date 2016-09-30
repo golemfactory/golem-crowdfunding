@@ -39,6 +39,31 @@ contract ERC20TokenInterface {
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
 }
 
+contract BalanceDB {
+    address owner;
+    address controller;
+    mapping (address => uint256) balances;
+
+    function balanceOf(address _addr) constant returns (uint256 balance) {
+        return balances[_addr];
+    }
+
+    function setBalanceOf(address _addr, uint256 _value) {
+        if (msg.sender == controller)
+            balances[_addr] = _value;
+    }
+
+    function changeController(address _newController) {
+        if (msg.sender == owner)
+            controller = _newController;
+    }
+
+    function changeOwner(address _newOwner) {
+        if (msg.sender == owner)
+            owner = _newOwner;
+    }
+}
+
 contract StandardToken is ERC20TokenInterface {
     mapping (address => uint256) balances;
     mapping (address => mapping (address => uint256)) allowed;
