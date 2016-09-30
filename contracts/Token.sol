@@ -44,6 +44,8 @@ contract StandardToken is ERC20TokenInterface {
     mapping (address => mapping (address => uint256)) allowed;
 
     function transfer(address _to, uint256 _value) returns (bool success) {
+        // FIXME: Should we lock the transfer during the funding period?
+
         //Default assumes totalSupply can't be over max (2^256 - 1).
         //If your token leaves out totalSupply and can issue more tokens as time goes on, you need to check if it doesn't wrap.
         //Replace the if with this one instead.
@@ -98,59 +100,102 @@ contract GolemNetworkToken is StandardToken {
     string public constant name = "Golem Network Token";
     uint8 public constant decimals = 1;
     string public constant symbol = "GNT";
-    
+
     // TODO: Organize the funding it the way it zeros additional data
     //       when finished.
-    
+
     bool fundingNotFinalized = true;
     uint256 constant fundingMax = 847457627118644067796611;
     uint256 constant fundingMin = 84745762711864406779661;
-    uint256 constant fundingStart = 2500000;
-    uint256 constant fundingEnd = fundingStart + 200000;
+    uint256 fundingStart;
+    uint256 fundingEnd;
     uint256 constant singleFunding = 10000 ether;
 
     string public constant version = 'H0.1';       //human 0.1 standard. Just an arbitrary versioning scheme.
 
     address founder;
 
-    function GolemNetworkToken(address _founder) {
+    function GolemNetworkToken(address _founder, uint256 _fundingStart,
+                               uint256 _fundingEnd) {
         founder = _founder;
+        fundingStart = _fundingStart;
+        fundingEnd = _fundingEnd;
+    }
+
+    function changeFounder(address _newFounder) external {
+        // TODO: Sort function by importance.
+        if (msg.sender == founder)
+            founder = _newFounder;
     }
 
     function totalSupply() constant returns (uint256 supply) {
         return supply;
     }
-    
-    function generateTokens() returns (bool success) {
+
+    function generateTokens() external {
+        // TODO: If no params we should move it to function().
+
+        // Only in funding period.
         if (block.number < fundingStart) throw;
         if (block.number > fundingEnd) throw;
-        
-        var n = msg.value;
-        if (n == 0) throw;
-        if (n > singleFunding) throw;
-        
-        var tokensLeft = fundingMax - supply;
-        if (n > tokensLeft) throw; // ?
-        
-        balances[msg.sender] += n;
-        supply += n;
-        // TODO: send ethers to the Founder.
+
+        var numTokens = msg.value;
+        if (numTokens == 0) throw;
+
+        // Do not allow generating more than the cap.
+        // UI should known that and propose available number of tokens,
+        // but still it is a race condition.
+        // Alternatively, we can generate up the cap and return the left ether
+        // to the sender. But calling unknown addresses is a sequrity risk.
+        uint256 tokensLeft = fundingMax - supply;
+        if (numTokens > tokensLeft) throw;
+
+        // Assigne new tokens to the sender
+        balances[msg.sender] += numTokens;
+        supply += numTokens;
     }
-    
-    function finalizeFunding() {
+
+    function finalizeFunding() external {
+        // FIXME: Add case when below minimum funding.
         if (!fundingNotFinalized) throw;
         if (msg.sender != founder) throw;
         if (block.number <= fundingEnd) throw;
-        
-        // Generate additional tokens for Founder.
+
+        // Send ether to the Founder.
+        if (!founder.send(msg.value)) throw;
+
+        // Generate additional tokens for the Founder.
+        // TODO: We can split it add lockup here.
         var additionalTokens = supply * 118 / 100;
         balances[founder] += additionalTokens;
         supply += additionalTokens;
-        
+
         // Cleanup
         delete founder;
-        fundingNotFinalized = false;  // Using founder as an indicator is enough?
-        
+        delete fundingStart;
+        delete fundingEnd;
+        // TODO: Using founder as an indicator is enough?
+        fundingNotFinalized = false;
+    }
+
+    // Allows a funder to get ones ether back in case the funding minimum has
+    // not been reached.
+    //
+    // Low priority.
+    function sendFundsBack() external {
+        // TODO: We can also create a function sendFundsBackFor(address).
+        // FIXME: See consern about transfering tokens during the funding
+        //        period in transfer().
+
+        // Only after the funding period.
+        if (block.number <= fundingEnd) throw;
+
+        // Only if the minimum funding not reached.
+        if (supply >= fundingMin) throw;
+
+        uint256 value = balances[msg.sender];
+        balances[msg.sender] = 0;
+        if (!msg.sender.send(value)) throw;
     }
 
     /* Approves and then calls the receiving contract */
