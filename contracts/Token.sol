@@ -112,8 +112,6 @@ contract StandardToken is ERC20TokenInterface {
 
 contract GolemNetworkToken is StandardToken {
 
-    /* Public variables of the token */
-
     /*
     NOTE:
     The following variables are OPTIONAL vanities. One does not have to include them.
@@ -128,8 +126,9 @@ contract GolemNetworkToken is StandardToken {
     uint8 public constant decimals = 10^18; // TODO
     string public constant symbol = "GNT";
 
-    uint256 constant fundingMax = 847457627118644067796611;
-    uint256 constant fundingMin = 84745762711864406779661;
+    uint256 constant percentTokensForFounder = 18;
+    uint256 constant tokensPerWei = 1;
+    uint256 constant fundingMax = 847457627118644067796611 * tokensPerWei;
     uint256 fundingStart;
     uint256 fundingEnd;
     address founder;
@@ -158,7 +157,7 @@ contract GolemNetworkToken is StandardToken {
         if (block.number < fundingStart) throw;
         if (block.number > fundingEnd) throw;
 
-        var numTokens = msg.value;
+        var numTokens = msg.value * tokensPerWei;
         if (numTokens == 0) throw;
 
         // Do not allow generating more than the cap.
@@ -175,68 +174,29 @@ contract GolemNetworkToken is StandardToken {
         // TODO: Add event?
     }
 
-    // Finalize the funding period
-    function finalizeFunding() external {
-        // This check redundant to the next one. Not sure if the future ethereum
-        // changes will not introduce special messages coming from address 0.
-        if (founder == 0) throw;
+    function transferEtherToFounder() external {
+        // Only after the funding has ended.
         if (msg.sender != founder) throw;
         if (block.number <= fundingEnd) throw;
 
-        // Allowed only if the minimum funding reached. Otherwise the founder
-        // must allow funders to get theirs ether back (so not cleanup either).
-        if (supply < fundingMin) throw;
+        if (!founder.send(this.balance)) throw;
+    }
 
-        // Send ether to the Founder.
-        if (!founder.send(msg.value)) throw;
+    // Finalize the funding period
+    function finalizeFunding() external {
+        if (fundingEnd == 0) throw;
+        if (msg.sender != founder) throw;
+        if (block.number <= fundingEnd) throw;
 
         // Generate additional tokens for the Founder.
-        // TODO: We can split it add lockup here.
-        var additionalTokens = supply * 118 / 100;
+        var additionalTokens = supply * (100 + percentTokensForFounder) / 100;
         balances[founder] += additionalTokens;
         supply += additionalTokens;
 
         // Cleanup. Remove all data not needed any more.
         // Also zero the founder address to indicate that funding has been
         // finalized.
-        delete founder;
-        // founder = 0;
-        delete fundingStart;
-        delete fundingEnd;
-    }
-
-    // Allows a funder to get ones ether back in case the funding minimum has
-    // not been reached.
-    //
-    // Low priority.
-    function sendFundsBack() external {
-        // TODO: We can also create a function sendFundsBackFor(address).
-        // FIXME: See concern about transfering tokens during the funding
-        //        period in transfer().
-
-        // Only after the funding period.
-        if (block.number <= fundingEnd) throw;
-
-        // Only if the minimum funding not reached.
-        if (supply >= fundingMin) throw;
-
-        uint256 value = balances[msg.sender];
-        balances[msg.sender] = 0;
-
-        // TODO: Check how much gas is sent and if it always enough.
-        if (!msg.sender.send(value)) throw;
-    }
-
-    /* Approves and then calls the receiving contract */
-    // FIXME: Remove it?
-    function approveAndCall(address _spender, uint256 _value, bytes _extraData) returns (bool success) {
-        allowed[msg.sender][_spender] = _value;
-        Approval(msg.sender, _spender, _value);
-
-        //call the receiveApproval function on the contract you want to be notified. This crafts the function signature manually so one doesn't have to include a contract in here just for this.
-        //receiveApproval(address _from, uint256 _value, address _tokenContract, bytes _extraData)
-        //it is assumed that when does this that the call *should* succeed, otherwise one would use vanilla approve instead.
-        if(!_spender.call(bytes4(bytes32(sha3("receiveApproval(address,uint256,address,bytes)"))), msg.sender, _value, this, _extraData)) { throw; }
-        return true;
+        fundingStart = 0;
+        fundingEnd = 0;
     }
 }
