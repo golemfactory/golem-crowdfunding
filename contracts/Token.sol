@@ -140,6 +140,12 @@ contract GolemNetworkToken is StandardToken {
         fundingEnd = _fundingEnd;
     }
 
+    // Helper function to check if the funding has ended. It also handles the
+    // case where `fundingEnd` has been zerod.
+    function fundingHasEnded() constant internal returns (bool) {
+        return block.number > fundingEnd;
+    }
+
     function changeFounder(address _newFounder) external {
         // TODO: Sort function by importance.
         if (msg.sender == founder)
@@ -155,7 +161,7 @@ contract GolemNetworkToken is StandardToken {
 
         // Only in funding period.
         if (block.number < fundingStart) throw;
-        if (block.number > fundingEnd) throw;
+        if (fundingHasEnded()) throw;
 
         var numTokens = msg.value * tokensPerWei;
         if (numTokens == 0) throw;
@@ -174,10 +180,13 @@ contract GolemNetworkToken is StandardToken {
         // TODO: Add event?
     }
 
+    // Allow the Founder to transfer ethers from the funding to its account.
+    // This can be done only after the funding has endned but multiple times
+    // in case someone accedentially deposits any ether in the Token contract.
     function transferEtherToFounder() external {
         // Only after the funding has ended.
         if (msg.sender != founder) throw;
-        if (block.number <= fundingEnd) throw;
+        if (!fundingHasEnded()) throw;
 
         if (!founder.send(this.balance)) throw;
     }
@@ -186,7 +195,7 @@ contract GolemNetworkToken is StandardToken {
     function finalizeFunding() external {
         if (fundingEnd == 0) throw;
         if (msg.sender != founder) throw;
-        if (block.number <= fundingEnd) throw;
+        if (!fundingHasEnded()) throw;
 
         // Generate additional tokens for the Founder.
         var additionalTokens = supply * (100 + percentTokensForFounder) / 100;
