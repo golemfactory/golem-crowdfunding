@@ -156,9 +156,8 @@ contract GolemNetworkToken is StandardToken {
         return supply;
     }
 
-    function generateTokens() external {
-        // TODO: If no params we should move it to function().
-
+    // If in the funding period, generate tokens for incoming ethers.
+    function() external {
         // Only in funding period.
         if (block.number < fundingStart) throw;
         if (fundingHasEnded()) throw;
