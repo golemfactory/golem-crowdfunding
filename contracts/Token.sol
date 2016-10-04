@@ -133,6 +133,8 @@ contract GolemNetworkToken is StandardToken {
     uint256 fundingEnd;
     address founder;
 
+    event TokensGenerated(address indexed _owner, uint256 _numTokens);
+
     function GolemNetworkToken(address _founder, uint256 _fundingStart,
                                uint256 _fundingEnd) {
         founder = _founder;
@@ -191,7 +193,7 @@ contract GolemNetworkToken is StandardToken {
         // Assigne new tokens to the sender
         balances[msg.sender] += numTokens;
         supply += numTokens;
-        // TODO: Add event?
+        TokensGenerated(msg.sender, numTokens);
     }
 
     // Allow the Founder to transfer ethers from the funding to its account.
