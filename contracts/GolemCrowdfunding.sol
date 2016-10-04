@@ -12,10 +12,8 @@ contract GolemCrowdfunding {
     uint256 constant ETH2GNTRate = 1000;
     uint256 constant minCapInETH = 74074 ether
     uint256 constant maxCapInETH = 740740 ether;
-    uint256 constant minAcceptedETH = 1000 szabo; // 0.001 ETH
 
     // Make sure that this address points to the multisig wallet
-    address founder = {{multisig wallet}}; // TODO: add valid address here
     address owner;
  
     uint256 crowdfundingStartBlock;
@@ -28,24 +26,10 @@ contract GolemCrowdfunding {
     uint256 crowdfundingETHBalance;
     uint256 issuedGNT;
     mapping (address => uint) fundersETHLedger;
-    bool founderTokensIssued;
+    bool finalized;
 
     // modifiers
-    modifier noEther() {
-        if (msg.value > 0) {
-            throw;
-        }
-        _
-    }
-
-    modifier minInvestment() {
-        // Make sure that at least minAcceptedETH was sent
-        if (msg.value < minAcceptedETH) {
-            throw;
-        }
-        _
-    }
-
+    
     modifier belowMaxCap() {
         // Make sure that current message is below maximum cap
         // Do not allow generating more than the cap.
@@ -68,14 +52,6 @@ contract GolemCrowdfunding {
 
     modifier onlyIfMinGoalReached() {
         if (crowdfundingETHBalance < minCapInETH) {
-            throw;
-        }
-        _
-    }
-
-    modifier onlyFounder() {
-        // Only founder the founder is allowed
-        if (msg.sender != founder) {
             throw;
         }
         _
@@ -124,30 +100,27 @@ contract GolemCrowdfunding {
     function resumeCrowdfunding() external onlyOwner {
         halted = false;
     }
-
-    /// @notice fallback function called if for some reason founder address has to be changed
-    function changeFounder(address _newFounder) external notHalted noEther onlyOwner {
-        founder = _newFounder;
-    }
  
     /// @notice fallback function called if for some reason owner address has to be changed
-    function changeOwner(address _newOwner) external notHalted noEther onlyOwner {
+    function changeOwner(address _newOwner) external notHalted onlyOwner {
         owner = _newOwner;
     }
 
-    function GolemCrowdfunding(uint256 _crowdfundingStartBlock, uint256 _crowdfundingEndBlock) noEther {
+    function GolemCrowdfunding(uint256 _crowdfundingStartBlock, uint256 _crowdfundingEndBlock) {
         owner = msg.sender;
         crowdfundingStartBlock = _crowdfundingStartBlock;
         crowdfundingEndBlock = _crowdfundingEndBlock;
+        
+        // FIXME: leave or comment out (by default all member variabels are initialized this way)
         halted = false;
         crowdfundingETHBalance = 0;
         issuedGNT = 0;
-        founderTokensIssued = false;
+        finalized = false;
     }
 
     /// @notice Setup function sets external contracts' addresses.
     /// @param golemNetworkTokenAddress Token address.
-    function initialize(address _golemNetworkTokenAddress) external notHalted noEther onlyOwner returns (bool)
+    function initialize(address _golemNetworkTokenAddress) external notHalted onlyOwner returns (bool)
     {
         if (address(golemNetworkToken) == 0) {
             golemNetworkToken = GolemNetworkToken(_golemNetworkTokenAddress);
@@ -164,7 +137,7 @@ contract GolemCrowdfunding {
     // If before fundingh period, return all eth from the current message to the owner
     // If in the funding period, generate tokens for incoming ethers
     // If after the funding period, conditionally handle investment return (if the minimum cap was not reached)
-    function() external notHalted {
+    function() external payable notHalted {
 
         // Make sure that this contract doesn't do anything before the crowdfunding start date
         if (block.number < crowdfundingStartBlock) throw;
@@ -179,21 +152,23 @@ contract GolemCrowdfunding {
     }
 
     // Handles generation of tokens
-    function handleCrowdfunding() private minInvestment belowMaxCap {
+    function handleCrowdfunding() private belowMaxCap {
         var numTokens = msg.value * ETH2GNTRate;
 
-        if (!golemNetworkToken.issueTokens(msg.sender, numTokens)) {
-            throw;
-        }
+        if( numtokens > 0 ) {
+            if (!golemNetworkToken.issueTokens(msg.sender, numTokens)) {
+                throw;
+            }
 
-        // Update ETH ledger and track total ETH sent to this contract
-        fundersETHLedger[msg.sender] += msg.value;
-        crowdfundingETHBalance += msg.value;    
-        issuedGNT += numTokens;
+            // Update ETH ledger and track total ETH sent to this contract
+            fundersETHLedger[msg.sender] += msg.value;
+            crowdfundingETHBalance += msg.value;    
+            issuedGNT += numTokens;
+        }
     }
     
     // Return funder ETH
-    function refundFunder() private {
+    function refundFunder() private {    
         var funderETH = fundersETHLedger[msg.sender];
         fundersETHLedger[msg.sender] = 0;
         crowdfundingETHBalance -= funderETH;
@@ -204,28 +179,24 @@ contract GolemCrowdfunding {
     }
 
     // Handles token refund in case minCapInETH was not reached
-    function handlePostCrowdfunding() private noEther {
+    function handlePostCrowdfunding() private {
+        if (msg.value > 0) throw;
+
         if (!minGoalReached()) {
             refundFunder();
         }
     }
 
-    // Allow the Founder to transfer ethers from the funding to its account.
-    // This can be done only after the funding has ended and only once
-    function transferEtherToFounder() external notHalted onlyOwner afterCrowdfunding onlyIfMinGoalReached {            
-        var totalFundedETH = crowdfundingETHBalance;
-        crowdfundingETHBalance = 0;
-        if (totalFundedETH > 0 && !funder.send(totalFundedETH)) {
-            throw;
-        }
-    
-        checkIfIsInSafeState();
-    }
-
-    // Finalize the funding period
-    function issueFounderTokens() external notHalted noETH onlyOwner afterCrowdfunding onlyIfMinGoalReached {
-        
-        if (!founderTokensIssued) {
+    // Finalize crowdfunding (send ETH to the founder and generate additional founder GNT)
+    function finalze() external notHalted onlyOwner afterCrowdfunding onlyIfMinGoalReached {
+        if (!finalized) {
+            // Transfer funds to the owner (founder)
+            var totalFundedETH = crowdfundingETHBalance;
+            crowdfundingETHBalance = 0;
+            if (totalFundedETH > 0 && !owner.send(totalFundedETH)) {
+                throw;
+            }
+            
             // Generate additional tokens for the Founder
             var founderNumTokens = issuedGNT * percentTokensForFounder / (100 - percentTokensForFounder);
 
@@ -235,12 +206,16 @@ contract GolemCrowdfunding {
 
             founderTokensIssued = true;
             issuedGNT += founderNumTokens;
-        }
 
-        // Cleanup. Remove all data not needed any more.
-        // Also zero the founder address to indicate that funding has been
-        // finalized.
-        crowdfundingStartBlock = 0;
-        crowdfundingEndBlock = 0;
+            finalized = true;
+
+            checkIfIsInSafeState();
+
+            // Cleanup. Remove all data not needed any more.
+            // Also zero the founder address to indicate that funding has been
+            // finalized.
+            crowdfundingStartBlock = 0;
+            crowdfundingEndBlock = 0;
+        }
     }
 }
