@@ -142,8 +142,14 @@ contract GolemNetworkToken is StandardToken {
 
     // Helper function to check if the funding has ended. It also handles the
     // case where `fundingEnd` has been zerod.
-    function fundingHasEnded() constant internal returns (bool) {
-        return block.number > fundingEnd;
+    function fundingHasEnded() constant returns (bool) {
+        if (block.number > fundingEnd)
+            return true;
+
+        // The funding is ended also if the cap is reached.
+        if (supply == fundingMax)
+            return true;
+        return false;
     }
 
     function changeFounder(address _newFounder) external {
