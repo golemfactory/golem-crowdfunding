@@ -69,30 +69,24 @@ contract StandardToken is ERC20TokenInterface {
     mapping (address => mapping (address => uint256)) allowed;
 
     function transfer(address _to, uint256 _value) returns (bool success) {
-        // FIXME: Should we lock the transfer during the funding period?
-
-        //Default assumes totalSupply can't be over max (2^256 - 1).
-        //If your token leaves out totalSupply and can issue more tokens as time goes on, you need to check if it doesn't wrap.
-        //Replace the if with this one instead.
-        //if (balances[msg.sender] >= _value && balances[_to] + _value > balances[_to]) {
         if (balances[msg.sender] >= _value && _value > 0) {
             balances[msg.sender] -= _value;
             balances[_to] += _value;
             Transfer(msg.sender, _to, _value);
             return true;
-        } else { return false; }
+        }
+        return false;
     }
 
     function transferFrom(address _from, address _to, uint256 _value) returns (bool success) {
-        //same as above. Replace this line with the following if you want to protect against wrapping uints.
-        //if (balances[_from] >= _value && allowed[_from][msg.sender] >= _value && balances[_to] + _value > balances[_to]) {
         if (balances[_from] >= _value && allowed[_from][msg.sender] >= _value && _value > 0) {
             balances[_to] += _value;
             balances[_from] -= _value;
             allowed[_from][msg.sender] -= _value;
             Transfer(_from, _to, _value);
             return true;
-        } else { return false; }
+        }
+        return false;
     }
 
     function balanceOf(address _owner) constant returns (uint256 balance) {
@@ -106,22 +100,14 @@ contract StandardToken is ERC20TokenInterface {
     }
 
     function allowance(address _owner, address _spender) constant returns (uint256 remaining) {
-      return allowed[_owner][_spender];
+        return allowed[_owner][_spender];
     }
 }
 
 contract GolemNetworkToken is StandardToken {
+    string public standard = 'Token 0.1'; // TODO: I think we should remove it.
 
-    /*
-    NOTE:
-    The following variables are OPTIONAL vanities. One does not have to include them.
-    They allow one to customise the token contract & in no way influences the core functionality.
-    Some wallets/interfaces might not even bother to look at this information.
-    */
-
-    string public standard = 'Token 0.1';
-
-    uint256 supply = 0;
+    uint256 supply = 0;  // TODO: We can replace that with public totalSupply.
     string public constant name = "Golem Network Token";
     uint8 public constant decimals = 10^18; // TODO
     string public constant symbol = "GNT";
