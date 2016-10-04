@@ -147,9 +147,20 @@ contract GolemNetworkToken is StandardToken {
             return true;
 
         // The funding is ended also if the cap is reached.
-        if (supply == fundingMax)
-            return true;
-        return false;
+        return supply == fundingMax;
+    }
+
+    // Are we in the funding period?
+    function fundingOngoing() constant returns (bool) {
+        if (fundingHasEnded())
+            return false;
+        return block.number >= fundingStart;
+    }
+
+    // Helper function to get number of tokens left during the funding.
+    // This is also a public function to allow better Dapps integration.
+    function numberOfTokensLeft() constant returns (uint256) {
+        return fundingMax - supply;
     }
 
     function changeFounder(address _newFounder) external {
@@ -165,8 +176,7 @@ contract GolemNetworkToken is StandardToken {
     // If in the funding period, generate tokens for incoming ethers.
     function() external {
         // Only in funding period.
-        if (block.number < fundingStart) throw;
-        if (fundingHasEnded()) throw;
+        if (!fundingOngoing()) throw;
 
         var numTokens = msg.value * tokensPerWei;
         if (numTokens == 0) throw;
@@ -176,8 +186,7 @@ contract GolemNetworkToken is StandardToken {
         // but still it is a race condition.
         // Alternatively, we can generate up the cap and return the left ether
         // to the sender. But calling unknown addresses is a sequrity risk.
-        uint256 tokensLeft = fundingMax - supply;
-        if (numTokens > tokensLeft) throw;
+        if (numTokens > numberOfTokensLeft()) throw;
 
         // Assigne new tokens to the sender
         balances[msg.sender] += numTokens;
