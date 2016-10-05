@@ -5,7 +5,7 @@ pragma solidity ^0.4.1;
 
 contract ERC20TokenInterface {
     /// total amount of tokens
-    uint256 public totalSupply;
+    function totalSupply() constant returns (uint256);
 
     /// @param _owner The address from which the balance will be retrieved
     /// @return The balance
@@ -39,14 +39,58 @@ contract ERC20TokenInterface {
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
 }
 
-contract StandardToken is ERC20TokenInterface {
+contract BalanceDB {
+    address owner;
+    address controller; // TODO: We can merge owner and controller.
+    uint256 public total;
     mapping (address => uint256) balances;
+
+    function BalanceDB(address _owner, address _controller) {
+        owner = _owner;
+        controller = _controller;
+    }
+
+    function balanceOf(address _addr) constant returns (uint256) {
+        return balances[_addr];
+    }
+
+    function addBalance(address _addr, uint256 _value) {
+        if (msg.sender != controller) throw;
+        balances[_addr] += _value;
+        total += _value;
+    }
+
+    function changeController(address _newController) {
+        // FIXME: We have to decide how to report failures.
+        if (msg.sender == owner)
+            controller = _newController;
+    }
+
+    function changeOwner(address _newOwner) {
+        if (msg.sender == owner)
+            owner = _newOwner;
+    }
+}
+
+contract StandardToken is ERC20TokenInterface {
+    BalanceDB db;
+
     mapping (address => mapping (address => uint256)) allowed;
 
+    function StandardToken(address _db) {
+        // TODO: It would be cheaper if the db address is a constant.
+        db = BalanceDB(_db);
+    }
+
+    function totalSupply() constant returns (uint256) {
+        return db.total();
+    }
+
     function transfer(address _to, uint256 _value) returns (bool success) {
-        if (balances[msg.sender] >= _value && _value > 0) {
-            balances[msg.sender] -= _value;
-            balances[_to] += _value;
+        if (db.balanceOf(msg.sender) >= _value && _value > 0) {
+            // TODO: Make sure the calls cause a throw in case of OOG.
+            db.addBalance(msg.sender, -_value);
+            db.addBalance(_to, _value);
             Transfer(msg.sender, _to, _value);
             return true;
         }
@@ -54,9 +98,9 @@ contract StandardToken is ERC20TokenInterface {
     }
 
     function transferFrom(address _from, address _to, uint256 _value) returns (bool success) {
-        if (balances[_from] >= _value && allowed[_from][msg.sender] >= _value && _value > 0) {
-            balances[_to] += _value;
-            balances[_from] -= _value;
+        if (db.balanceOf(_from) >= _value && allowed[_from][msg.sender] >= _value && _value > 0) {
+            db.addBalance(msg.sender, -_value);
+            db.addBalance(_to, _value);
             allowed[_from][msg.sender] -= _value;
             Transfer(_from, _to, _value);
             return true;
@@ -65,7 +109,7 @@ contract StandardToken is ERC20TokenInterface {
     }
 
     function balanceOf(address _owner) constant returns (uint256 balance) {
-        return balances[_owner];
+        return db.balanceOf(_owner);
     }
 
     function approve(address _spender, uint256 _value) returns (bool success) {
@@ -93,8 +137,8 @@ contract GolemNetworkToken is StandardToken {
     uint256 fundingEnd;
     address founder;
 
-    function GolemNetworkToken(address _founder, uint256 _fundingStart,
-                               uint256 _fundingEnd) {
+    function GolemNetworkToken(address _db, address _founder, uint256 _fundingStart,
+                               uint256 _fundingEnd) StandardToken(_db) {
         founder = _founder;
         fundingStart = _fundingStart;
         fundingEnd = _fundingEnd;
@@ -107,7 +151,7 @@ contract GolemNetworkToken is StandardToken {
             return true;
 
         // The funding is ended also if the cap is reached.
-        return totalSupply == fundingMax;
+        return totalSupply() == fundingMax;
     }
 
     // Are we in the funding period?
@@ -120,7 +164,7 @@ contract GolemNetworkToken is StandardToken {
     // Helper function to get number of tokens left during the funding.
     // This is also a public function to allow better Dapps integration.
     function numberOfTokensLeft() constant returns (uint256) {
-        return fundingMax - totalSupply;
+        return fundingMax - totalSupply();
     }
 
     function changeFounder(address _newFounder) external {
@@ -145,8 +189,7 @@ contract GolemNetworkToken is StandardToken {
         if (numTokens > numberOfTokensLeft()) throw;
 
         // Assigne new tokens to the sender
-        balances[msg.sender] += numTokens;
-        totalSupply += numTokens;
+        db.addBalance(msg.sender, numTokens);
         // Notify about the token generation with a transfer event from 0 address.
         Transfer(0, msg.sender, numTokens);
     }
@@ -169,9 +212,8 @@ contract GolemNetworkToken is StandardToken {
         if (!fundingHasEnded()) throw;
 
         // Generate additional tokens for the Founder.
-        var additionalTokens = totalSupply * percentTokensForFounder / (100 - percentTokensForFounder);
-        balances[founder] += additionalTokens;
-        totalSupply += additionalTokens;
+        var additionalTokens = totalSupply() * percentTokensForFounder / (100 - percentTokensForFounder);
+        db.addBalance(founder, additionalTokens);
 
         // Cleanup. Remove all data not needed any more.
         // Also zero the founder address to indicate that funding has been
