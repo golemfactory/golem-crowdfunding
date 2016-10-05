@@ -301,7 +301,7 @@ contract GolemCrowdfunding {
         if (block.number <= config.crowdfundingEndBlock) {
             var numTokens = msg.value * config.ETH2GNTRate;
 
-            if( numtokens > 0 ) {
+            if( numTokens > 0 ) {
                 if (!gnt.issueTokens(msg.sender, numTokens)) {
                     throw;
                 }
