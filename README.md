@@ -2,7 +2,8 @@
 
 Deployment process:
 
-1. Owner account is created (may be a multisig wallet address)
+0. Set all configuration variables (CrowdfundingConfig struct in GolemCrowdfunding contract)
+1. Owner account is created (may be a multisig wallet address) 
 2. Founder wallet is created (must be a multisig wallet, may be the owner address)
 3. GolemCrowdfunding contract is deployed by the owner
   * Hardcode founder wallet address in the contract
