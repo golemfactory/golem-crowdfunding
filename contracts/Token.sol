@@ -62,8 +62,8 @@ contract StandardToken is ERC20TokenInterface {
             Transfer(msg.sender, _to, _value);
             return true;
         } else { 
-			return false; 
-		}
+	    return false; 
+	}
     }
 
     function transferFrom(address _from, address _to, uint256 _value) returns (bool success) {
@@ -76,8 +76,8 @@ contract StandardToken is ERC20TokenInterface {
             Transfer(_from, _to, _value);
             return true;
         } else { 
-			return false; 
-		}
+	    return false; 
+	}
     }
 
     function balanceOf(address _owner) constant returns (uint256 balance) {
