@@ -5,7 +5,7 @@ pragma solidity ^0.4.1;
 
 contract ERC20TokenInterface {
     /// total amount of tokens
-    function totalSupply() constant returns (uint256 supply);
+    uint256 public totalSupply;
 
     /// @param _owner The address from which the balance will be retrieved
     /// @return The balance
@@ -107,7 +107,6 @@ contract StandardToken is ERC20TokenInterface {
 contract GolemNetworkToken is StandardToken {
     string public standard = 'Token 0.1'; // TODO: I think we should remove it.
 
-    uint256 supply = 0;  // TODO: We can replace that with public totalSupply.
     string public constant name = "Golem Network Token";
     uint8 public constant decimals = 10^18; // TODO
     string public constant symbol = "GNT";
@@ -133,7 +132,7 @@ contract GolemNetworkToken is StandardToken {
             return true;
 
         // The funding is ended also if the cap is reached.
-        return supply == fundingMax;
+        return totalSupply == fundingMax;
     }
 
     // Are we in the funding period?
@@ -146,17 +145,13 @@ contract GolemNetworkToken is StandardToken {
     // Helper function to get number of tokens left during the funding.
     // This is also a public function to allow better Dapps integration.
     function numberOfTokensLeft() constant returns (uint256) {
-        return fundingMax - supply;
+        return fundingMax - totalSupply;
     }
 
     function changeFounder(address _newFounder) external {
         // TODO: Sort function by importance.
         if (msg.sender == founder)
             founder = _newFounder;
-    }
-
-    function totalSupply() constant returns (uint256 supply) {
-        return supply;
     }
 
     // If in the funding period, generate tokens for incoming ethers.
@@ -176,7 +171,7 @@ contract GolemNetworkToken is StandardToken {
 
         // Assigne new tokens to the sender
         balances[msg.sender] += numTokens;
-        supply += numTokens;
+        totalSupply += numTokens;
         // Notify about the token generation with a transfer event from 0 address.
         Transfer(0, msg.sender, numTokens);
     }
@@ -199,9 +194,9 @@ contract GolemNetworkToken is StandardToken {
         if (!fundingHasEnded()) throw;
 
         // Generate additional tokens for the Founder.
-        var additionalTokens = supply * (100 + percentTokensForFounder) / 100;
+        var additionalTokens = totalSupply * (100 + percentTokensForFounder) / 100;
         balances[founder] += additionalTokens;
-        supply += additionalTokens;
+        totalSupply += additionalTokens;
 
         // Cleanup. Remove all data not needed any more.
         // Also zero the founder address to indicate that funding has been
