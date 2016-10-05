@@ -276,8 +276,7 @@ contract GolemCrowdfunding {
 
     /// @notice Setup function sets external contracts' addresses.
     /// @param golemNetworkTokenAddress Token address.
-    function initialize(address _golemNetworkTokenAddress) external notHalted onlyOwner returns (bool)
-    {
+    function initialize(address _golemNetworkTokenAddress) external notHalted onlyOwner returns (bool) {
         if (address(gnt) == 0) {
             gnt = GolemNetworkToken(_golemNetworkTokenAddress);
             return true;
