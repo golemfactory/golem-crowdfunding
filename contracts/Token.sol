@@ -194,7 +194,7 @@ contract GolemNetworkToken is StandardToken {
         if (!fundingHasEnded()) throw;
 
         // Generate additional tokens for the Founder.
-        var additionalTokens = totalSupply * (100 + percentTokensForFounder) / 100;
+        var additionalTokens = totalSupply * percentTokensForFounder / (100 - percentTokensForFounder);
         balances[founder] += additionalTokens;
         totalSupply += additionalTokens;
 
