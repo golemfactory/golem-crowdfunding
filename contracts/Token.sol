@@ -70,11 +70,7 @@ contract GolemNetworkToken is ERC20TokenInterface {
     }
 
     function transfer(address _to, uint256 _value) returns (bool success) {
-        // Lock transfer until the funding is finished.
-        // TODO: waiting for finalization might be an issue as it depends on
-        //       the founder and can never happen.
-        if (!fundingFinalized()) throw;
-        if (balances[msg.sender] >= _value && _value > 0) {
+        if (isTransferable() && balances[msg.sender] >= _value && _value > 0) {
             balances[msg.sender] -= _value;
             balances[_to] += _value;
             Transfer(msg.sender, _to, _value);
@@ -84,8 +80,7 @@ contract GolemNetworkToken is ERC20TokenInterface {
     }
 
     function export(address _to, uint256 _value) returns (bool success) {
-        if (!fundingFinalized()) throw;
-        if (balances[msg.sender] >= _value && _value > 0) {
+        if (isTransferable() && balances[msg.sender] >= _value && _value > 0) {
             balances[msg.sender] -= _value;
             exports[_to] += _value;
             var importer = TokenImporter(_to);
@@ -95,9 +90,10 @@ contract GolemNetworkToken is ERC20TokenInterface {
         return false;
     }
 
-    function transferFrom(address _from, address _to, uint256 _value) returns (bool success) {
-        if (!fundingFinalized()) throw;
-        if (balances[_from] >= _value && allowed[_from][msg.sender] >= _value && _value > 0) {
+    function transferFrom(address _from, address _to, uint256 _value)
+            returns (bool success) {
+        if (isTransferable() && balances[_from] >= _value &&
+                allowed[_from][msg.sender] >= _value && _value > 0) {
             balances[_to] += _value;
             balances[_from] -= _value;
             allowed[_from][msg.sender] -= _value;
@@ -140,6 +136,10 @@ contract GolemNetworkToken is ERC20TokenInterface {
         if (fundingHasEnded())
             return false;
         return block.number >= fundingStart;
+    }
+
+    function isTransferable() constant returns (bool) {
+        return fundingHasEnded();
     }
 
     // Helper function to get number of tokens left during the funding.
