@@ -37,10 +37,11 @@ contract ERC20TokenInterface {
 
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
+    event Export(address indexed _from, address indexed _to, uint256 _value);
 }
 
 contract TokenImporter {
-    function importTokens(address _from, uint256 _value) returns (bool success);
+    function importTokens(address _from, uint256 _value);
 }
 
 contract GolemNetworkToken is ERC20TokenInterface {
@@ -57,6 +58,7 @@ contract GolemNetworkToken is ERC20TokenInterface {
     uint256 fundingEnd;
     address founder;
 
+    uint256 totalExported;
     mapping (address => uint256) balances;
     mapping (address => mapping (address => uint256)) allowed;
 
@@ -79,15 +81,17 @@ contract GolemNetworkToken is ERC20TokenInterface {
         return false;
     }
 
-    function export(address _to, uint256 _value) returns (bool success) {
+    function export(address _to, uint256 _value) {
         if (isTransferable() && balances[msg.sender] >= _value && _value > 0) {
             balances[msg.sender] -= _value;
             exports[_to] += _value;
-            var importer = TokenImporter(_to);
-            if (!importer.importTokens(msg.sender, _value)) throw;
-            return true;
+            totalSupply -= _value;
+            totalExported += _value;
+            TokenImporter(_to).importTokens(msg.sender, _value);
+            Export(msg.sender, _to, _value);
+            return;
         }
-        return false;
+        throw;
     }
 
     function transferFrom(address _from, address _to, uint256 _value)
