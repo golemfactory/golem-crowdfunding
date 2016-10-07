@@ -39,9 +39,29 @@ contract ERC20TokenInterface {
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
 }
 
-contract StandardToken is ERC20TokenInterface {
+contract GolemNetworkToken is ERC20TokenInterface {
+    string public standard = 'Token 0.1'; // TODO: I think we should remove it.
+
+    string public constant name = "Golem Network Token";
+    uint8 public constant decimals = 10^18; // TODO
+    string public constant symbol = "GNT";
+
+    uint256 constant percentTokensForFounder = 18;
+    uint256 constant tokensPerWei = 1;
+    uint256 constant fundingMax = 847457627118644067796611 * tokensPerWei;
+    uint256 fundingStart;
+    uint256 fundingEnd;
+    address founder;
+
     mapping (address => uint256) balances;
     mapping (address => mapping (address => uint256)) allowed;
+
+    function GolemNetworkToken(address _founder, uint256 _fundingStart,
+                               uint256 _fundingEnd) {
+        founder = _founder;
+        fundingStart = _fundingStart;
+        fundingEnd = _fundingEnd;
+    }
 
     function transfer(address _to, uint256 _value) returns (bool success) {
         if (balances[msg.sender] >= _value && _value > 0) {
@@ -76,28 +96,6 @@ contract StandardToken is ERC20TokenInterface {
 
     function allowance(address _owner, address _spender) constant returns (uint256 remaining) {
         return allowed[_owner][_spender];
-    }
-}
-
-contract GolemNetworkToken is StandardToken {
-    string public standard = 'Token 0.1'; // TODO: I think we should remove it.
-
-    string public constant name = "Golem Network Token";
-    uint8 public constant decimals = 10^18; // TODO
-    string public constant symbol = "GNT";
-
-    uint256 constant percentTokensForFounder = 18;
-    uint256 constant tokensPerWei = 1;
-    uint256 constant fundingMax = 847457627118644067796611 * tokensPerWei;
-    uint256 fundingStart;
-    uint256 fundingEnd;
-    address founder;
-
-    function GolemNetworkToken(address _founder, uint256 _fundingStart,
-                               uint256 _fundingEnd) {
-        founder = _founder;
-        fundingStart = _fundingStart;
-        fundingEnd = _fundingEnd;
     }
 
     // Helper function to check if the funding has ended. It also handles the
