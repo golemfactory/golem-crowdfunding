@@ -59,12 +59,11 @@ contract GolemNetworkToken is ERC20TokenInterface {
     address founder;
 
     uint256 totalTokens;
-    uint256 public totalExported;
     mapping (address => uint256) balances;
     mapping (address => mapping (address => uint256)) allowed;
 
     address public importer;
-    mapping (address => uint256) exports;
+    uint256 public totalExported;
 
     function GolemNetworkToken(address _founder, uint256 _fundingStart,
                                uint256 _fundingEnd) {
@@ -90,7 +89,6 @@ contract GolemNetworkToken is ERC20TokenInterface {
         if (_value == 0) throw;
 
         balances[msg.sender] -= _value;
-        exports[importer] += _value;
         totalTokens -= _value;
         totalExported += _value;
         TokenImporter(importer).importTokens(msg.sender, _value);
