@@ -1,7 +1,7 @@
 pragma solidity ^0.4.1;
 
-contract TokenImporter {
-    function importTokens(address _from, uint256 _value);
+contract MigrationAgent {
+    function loadTokens(address _from, uint256 _value);
 }
 
 contract GolemNetworkToken {
@@ -22,12 +22,12 @@ contract GolemNetworkToken {
     mapping (address => uint256) balances;
     mapping (address => mapping (address => uint256)) allowed;
 
-    address public importer;
-    uint256 public totalExported;
+    address public migrationAgent;
+    uint256 public totalMigrated;
 
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
-    event Export(address indexed _from, address indexed _to, uint256 _value);
+    event Migrate(address indexed _from, address indexed _to, uint256 _value);
 
     function GolemNetworkToken(address _founder, uint256 _fundingStart,
                                uint256 _fundingEnd) {
@@ -37,7 +37,7 @@ contract GolemNetworkToken {
     }
 
     function transfer(address _to, uint256 _value) returns (bool success) {
-        if (isTransferable() && balances[msg.sender] >= _value && _value > 0) {
+        if (transferEnabled() && balances[msg.sender] >= _value && _value > 0) {
             balances[msg.sender] -= _value;
             balances[_to] += _value;
             Transfer(msg.sender, _to, _value);
@@ -46,22 +46,22 @@ contract GolemNetworkToken {
         return false;
     }
 
-    function export(uint256 _value) {
-        if (!isExportable()) throw;
-        if (!isTransferable()) throw;
+    function migrate(uint256 _value) {
+        if (!migrationEnabled()) throw;
+        if (!transferEnabled()) throw;
         if (balances[msg.sender] < _value) throw;
         if (_value == 0) throw;
 
         balances[msg.sender] -= _value;
         totalTokens -= _value;
-        totalExported += _value;
-        TokenImporter(importer).importTokens(msg.sender, _value);
-        Export(msg.sender, importer, _value);
+        totalMigrated += _value;
+        MigrationAgent(migrationAgent).loadTokens(msg.sender, _value);
+        Migrate(msg.sender, migrationAgent, _value);
     }
 
     function transferFrom(address _from, address _to, uint256 _value)
             returns (bool success) {
-        if (isTransferable() && balances[_from] >= _value &&
+        if (transferEnabled() && balances[_from] >= _value &&
                 allowed[_from][msg.sender] >= _value && _value > 0) {
             balances[_to] += _value;
             balances[_from] -= _value;
@@ -111,12 +111,12 @@ contract GolemNetworkToken {
         return block.number >= fundingStart;
     }
 
-    function isTransferable() constant returns (bool) {
+    function transferEnabled() constant returns (bool) {
         return fundingHasEnded();
     }
 
-    function isExportable() constant returns (bool) {
-        return importer != 0;
+    function migrationEnabled() constant returns (bool) {
+        return migrationAgent != 0;
     }
 
     // Helper function to get number of tokens left during the funding.
@@ -182,9 +182,9 @@ contract GolemNetworkToken {
         fundingEnd = 0;
     }
 
-    function setImporter(address _importer) external {
+    function setMigrationAgent(address _agent) external {
         if (msg.sender != founder) throw;
-        if (isExportable()) throw;  // Do not allow changing the importer.
-        importer = _importer;
+        if (migrationEnabled()) throw;  // Do not allow changing the importer.
+        migrationAgent = _agent;
     }
 }
