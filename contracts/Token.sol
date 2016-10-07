@@ -54,9 +54,9 @@ contract GolemNetworkToken is ERC20TokenInterface {
     uint256 constant percentTokensForFounder = 18;
     uint256 constant tokensPerWei = 1;
     uint256 constant fundingMax = 847457627118644067796611 * tokensPerWei;
-    uint256 fundingStart;
-    uint256 fundingEnd;
-    address founder;
+    uint256 fundingStart;  // TODO: Make public?
+    uint256 fundingEnd;  // TODO: Make public?
+    address public founder;
 
     uint256 totalTokens;
     mapping (address => uint256) balances;
