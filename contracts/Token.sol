@@ -5,7 +5,7 @@ pragma solidity ^0.4.1;
 
 contract ERC20TokenInterface {
     /// total amount of tokens
-    uint256 public totalSupply;
+    function totalSupply() constant returns (uint256);
 
     /// @param _owner The address from which the balance will be retrieved
     /// @return The balance
@@ -58,7 +58,8 @@ contract GolemNetworkToken is ERC20TokenInterface {
     uint256 fundingEnd;
     address founder;
 
-    uint256 totalExported;
+    uint256 numTokens;
+    uint256 public totalExported;
     mapping (address => uint256) balances;
     mapping (address => mapping (address => uint256)) allowed;
 
@@ -85,7 +86,7 @@ contract GolemNetworkToken is ERC20TokenInterface {
         if (isTransferable() && balances[msg.sender] >= _value && _value > 0) {
             balances[msg.sender] -= _value;
             exports[_to] += _value;
-            totalSupply -= _value;
+            numTokens -= _value;
             totalExported += _value;
             TokenImporter(_to).importTokens(msg.sender, _value);
             Export(msg.sender, _to, _value);
@@ -105,6 +106,10 @@ contract GolemNetworkToken is ERC20TokenInterface {
             return true;
         }
         return false;
+    }
+
+    function totalSupply() constant returns (uint256) {
+        return numTokens;
     }
 
     function balanceOf(address _owner) constant returns (uint256 balance) {
@@ -128,7 +133,7 @@ contract GolemNetworkToken is ERC20TokenInterface {
             return true;
 
         // The funding is ended also if the cap is reached.
-        return totalSupply == fundingMax;
+        return numTokens == fundingMax;
     }
 
     function fundingFinalized() constant returns (bool) {
@@ -149,7 +154,7 @@ contract GolemNetworkToken is ERC20TokenInterface {
     // Helper function to get number of tokens left during the funding.
     // This is also a public function to allow better Dapps integration.
     function numberOfTokensLeft() constant returns (uint256) {
-        return fundingMax - totalSupply;
+        return fundingMax - numTokens;
     }
 
     function changeFounder(address _newFounder) external {
@@ -175,7 +180,7 @@ contract GolemNetworkToken is ERC20TokenInterface {
 
         // Assigne new tokens to the sender
         balances[msg.sender] += numTokens;
-        totalSupply += numTokens;
+        numTokens += numTokens;
         // Notify about the token generation with a transfer event from 0 address.
         Transfer(0, msg.sender, numTokens);
     }
@@ -198,9 +203,9 @@ contract GolemNetworkToken is ERC20TokenInterface {
         if (!fundingHasEnded()) throw;
 
         // Generate additional tokens for the Founder.
-        var additionalTokens = totalSupply * percentTokensForFounder / (100 - percentTokensForFounder);
+        var additionalTokens = numTokens * percentTokensForFounder / (100 - percentTokensForFounder);
         balances[founder] += additionalTokens;
-        totalSupply += additionalTokens;
+        numTokens += additionalTokens;
 
         // Cleanup. Remove all data not needed any more.
         // Also zero the founder address to indicate that funding has been
