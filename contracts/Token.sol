@@ -63,6 +63,7 @@ contract GolemNetworkToken is ERC20TokenInterface {
     mapping (address => uint256) balances;
     mapping (address => mapping (address => uint256)) allowed;
 
+    address public importer;
     mapping (address => uint256) exports;
 
     function GolemNetworkToken(address _founder, uint256 _fundingStart,
@@ -82,17 +83,18 @@ contract GolemNetworkToken is ERC20TokenInterface {
         return false;
     }
 
-    function export(address _to, uint256 _value) {
-        if (isTransferable() && balances[msg.sender] >= _value && _value > 0) {
-            balances[msg.sender] -= _value;
-            exports[_to] += _value;
-            numTokens -= _value;
-            totalExported += _value;
-            TokenImporter(_to).importTokens(msg.sender, _value);
-            Export(msg.sender, _to, _value);
-            return;
-        }
-        throw;
+    function export(uint256 _value) {
+        if (!isExportable()) throw;
+        if (!isTransferable()) throw;
+        if (balances[msg.sender] < _value) throw;
+        if (_value == 0) throw;
+
+        balances[msg.sender] -= _value;
+        exports[importer] += _value;
+        numTokens -= _value;
+        totalExported += _value;
+        TokenImporter(importer).importTokens(msg.sender, _value);
+        Export(msg.sender, importer, _value);
     }
 
     function transferFrom(address _from, address _to, uint256 _value)
@@ -149,6 +151,10 @@ contract GolemNetworkToken is ERC20TokenInterface {
 
     function isTransferable() constant returns (bool) {
         return fundingHasEnded();
+    }
+
+    function isExportable() constant returns (bool) {
+        return importer != 0;
     }
 
     // Helper function to get number of tokens left during the funding.
@@ -212,5 +218,11 @@ contract GolemNetworkToken is ERC20TokenInterface {
         // finalized.
         fundingStart = 0;
         fundingEnd = 0;
+    }
+
+    function setImporter(address _importer) external {
+        if (msg.sender != founder) throw;
+        if (isExportable()) throw;  // Do not allow changing the importer.
+        importer = _importer;
     }
 }
