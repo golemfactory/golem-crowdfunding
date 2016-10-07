@@ -64,6 +64,10 @@ contract GolemNetworkToken is ERC20TokenInterface {
     }
 
     function transfer(address _to, uint256 _value) returns (bool success) {
+        // Lock transfer until the funding is finished.
+        // TODO: waiting for finalization might be an issue as it depends on
+        //       the founder and can never happen.
+        if (!fundingFinalized()) throw;
         if (balances[msg.sender] >= _value && _value > 0) {
             balances[msg.sender] -= _value;
             balances[_to] += _value;
@@ -74,6 +78,7 @@ contract GolemNetworkToken is ERC20TokenInterface {
     }
 
     function transferFrom(address _from, address _to, uint256 _value) returns (bool success) {
+        if (!fundingFinalized()) throw;
         if (balances[_from] >= _value && allowed[_from][msg.sender] >= _value && _value > 0) {
             balances[_to] += _value;
             balances[_from] -= _value;
@@ -106,6 +111,10 @@ contract GolemNetworkToken is ERC20TokenInterface {
 
         // The funding is ended also if the cap is reached.
         return totalSupply == fundingMax;
+    }
+
+    function fundingFinalized() constant returns (bool) {
+        return fundingEnd == 0;
     }
 
     // Are we in the funding period?
@@ -162,7 +171,7 @@ contract GolemNetworkToken is ERC20TokenInterface {
 
     // Finalize the funding period
     function finalizeFunding() external {
-        if (fundingEnd == 0) throw;
+        if (fundingFinalized()) throw;
         if (msg.sender != founder) throw;
         if (!fundingHasEnded()) throw;
 
