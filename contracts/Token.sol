@@ -1,21 +1,23 @@
 pragma solidity ^0.4.1;
 
 contract MigrationAgent {
-    function loadTokens(address _from, uint256 _value);
+    function migrateFrom(address _from, uint256 _value);
 }
 
 contract GolemNetworkToken {
-    string public standard = 'Token 0.1'; // TODO: I think we should remove it.
-
     string public constant name = "Golem Network Token";
-    uint8 public constant decimals = 10^18; // TODO
+    uint8 public constant decimals = 10^18; // TODO: Set before crowdsale!
     string public constant symbol = "GNT";
 
+    // TODO: Set these params before crowdsale!
     uint256 constant percentTokensForFounder = 18;
-    uint256 constant tokensPerWei = 1;
-    uint256 constant fundingMax = 847457627118644067796611 * tokensPerWei;
-    uint256 fundingStart;  // TODO: Make public?
-    uint256 fundingEnd;  // TODO: Make public?
+    uint256 constant tokenCreationRate = 1;
+    // The funding cap in wei.
+    uint256 constant fundingMax = 847457627118644067796611 * tokenCreationRate;
+
+    uint256 fundingStartBlock;
+    uint256 fundingEndBlock;
+
     address public founder;
 
     uint256 totalTokens;
@@ -29,12 +31,14 @@ contract GolemNetworkToken {
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
     event Migrate(address indexed _from, address indexed _to, uint256 _value);
 
-    function GolemNetworkToken(address _founder, uint256 _fundingStart,
-                               uint256 _fundingEnd) {
+    function GolemNetworkToken(address _founder, uint256 _fundingStartBlock,
+                               uint256 _fundingEndBlock) {
         founder = _founder;
-        fundingStart = _fundingStart;
-        fundingEnd = _fundingEnd;
+        fundingStartBlock = _fundingStartBlock;
+        fundingEndBlock = _fundingEndBlock;
     }
+
+    // ERC20 Token Interface:
 
     function transfer(address _to, uint256 _value) returns (bool success) {
         if (transferEnabled() && balances[msg.sender] >= _value && _value > 0) {
@@ -44,19 +48,6 @@ contract GolemNetworkToken {
             return true;
         }
         return false;
-    }
-
-    function migrate(uint256 _value) {
-        if (!migrationEnabled()) throw;
-        if (!transferEnabled()) throw;
-        if (balances[msg.sender] < _value) throw;
-        if (_value == 0) throw;
-
-        balances[msg.sender] -= _value;
-        totalTokens -= _value;
-        totalMigrated += _value;
-        MigrationAgent(migrationAgent).loadTokens(msg.sender, _value);
-        Migrate(msg.sender, migrationAgent, _value);
     }
 
     function transferFrom(address _from, address _to, uint256 _value)
@@ -90,10 +81,37 @@ contract GolemNetworkToken {
         return allowed[_owner][_spender];
     }
 
+    // Token migration support:
+
+    function migrationEnabled() constant returns (bool) {
+        return migrationAgent != 0;
+    }
+
+    function migrate(uint256 _value) {
+        if (!migrationEnabled()) throw;
+        if (!transferEnabled()) throw;
+        if (balances[msg.sender] < _value) throw;
+        if (_value == 0) throw;
+
+        balances[msg.sender] -= _value;
+        totalTokens -= _value;
+        totalMigrated += _value;
+        MigrationAgent(migrationAgent).migrateFrom(msg.sender, _value);
+        Migrate(msg.sender, migrationAgent, _value);
+    }
+
+    function setMigrationAgent(address _agent) external {
+        if (msg.sender != founder) throw;
+        if (migrationEnabled()) throw;  // Do not allow changing the importer.
+        migrationAgent = _agent;
+    }
+
+    // Crowdfunding:
+
     // Helper function to check if the funding has ended. It also handles the
     // case where `fundingEnd` has been zerod.
     function fundingHasEnded() constant returns (bool) {
-        if (block.number > fundingEnd)
+        if (block.number > fundingEndBlock)
             return true;
 
         // The funding is ended also if the cap is reached.
@@ -101,22 +119,18 @@ contract GolemNetworkToken {
     }
 
     function fundingFinalized() constant returns (bool) {
-        return fundingEnd == 0;
+        return fundingEndBlock == 0;
     }
 
     // Are we in the funding period?
     function fundingOngoing() constant returns (bool) {
         if (fundingHasEnded())
             return false;
-        return block.number >= fundingStart;
+        return block.number >= fundingStartBlock;
     }
 
     function transferEnabled() constant returns (bool) {
         return fundingHasEnded();
-    }
-
-    function migrationEnabled() constant returns (bool) {
-        return migrationAgent != 0;
     }
 
     // Helper function to get number of tokens left during the funding.
@@ -136,7 +150,7 @@ contract GolemNetworkToken {
         // Only in funding period.
         if (!fundingOngoing()) throw;
 
-        var numTokens = msg.value * tokensPerWei;
+        var numTokens = msg.value * tokenCreationRate;
         if (numTokens == 0) throw;
 
         // Do not allow generating more than the cap.
@@ -178,13 +192,7 @@ contract GolemNetworkToken {
         // Cleanup. Remove all data not needed any more.
         // Also zero the founder address to indicate that funding has been
         // finalized.
-        fundingStart = 0;
-        fundingEnd = 0;
-    }
-
-    function setMigrationAgent(address _agent) external {
-        if (msg.sender != founder) throw;
-        if (migrationEnabled()) throw;  // Do not allow changing the importer.
-        migrationAgent = _agent;
+        fundingStartBlock = 0;
+        fundingEndBlock = 0;
     }
 }
