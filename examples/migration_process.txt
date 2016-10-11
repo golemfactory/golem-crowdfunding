@@ -1,0 +1,12 @@
+Migration process outline.
+
+Prerequisites:
+1. A valid and working GolemNetworkToken contract (a finalized one)
+2. The address of GolemNetworkToken contract's founder
+
+Steps:
+1. Create MigrationAgent contract (provide the address of the GolemNetworkToken contract which is going to be migrated as an input parameter)
+2. Create GNTTargetToken (provide the address of the created MigrationAgent contract as an input parameter)
+3. Set GolemNetworkToken's migration agent's address to the freshly created MigrationAgent contract's address (GolemNetworkToken.setMigrationAgent method)
+4. At this point everything is set up and migration can be announced. Each GNT owner has to call GolemNetworkToken.migrate method to migrate tokens to the new contract
+5. After the migration is finished the MigrationAgent.finalizeMigration method is called by the owner of the MigrationAgent contract (a gentle cleanup)
