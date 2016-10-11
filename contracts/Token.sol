@@ -1,74 +1,47 @@
 pragma solidity ^0.4.1;
 
-// Abstract contract for the full ERC 20 Token standard
-// https://github.com/ethereum/EIPs/issues/20
-
-contract ERC20TokenInterface {
-    /// total amount of tokens
-    uint256 public totalSupply;
-
-    /// @param _owner The address from which the balance will be retrieved
-    /// @return The balance
-    function balanceOf(address _owner) constant returns (uint256 balance);
-
-    /// @notice send `_value` token to `_to` from `msg.sender`
-    /// @param _to The address of the recipient
-    /// @param _value The amount of token to be transferred
-    /// @return Whether the transfer was successful or not
-    function transfer(address _to, uint256 _value) returns (bool success);
-
-    /// @notice send `_value` token to `_to` from `_from` on the condition it is approved by `_from`
-    /// @param _from The address of the sender
-    /// @param _to The address of the recipient
-    /// @param _value The amount of token to be transferred
-    /// @return Whether the transfer was successful or not
-    function transferFrom(address _from, address _to, uint256 _value) returns (bool success);
-
-    /// @notice `msg.sender` approves `_addr` to spend `_value` tokens
-    /// @param _spender The address of the account able to transfer the tokens
-    /// @param _value The amount of wei to be approved for transfer
-    /// @return Whether the approval was successful or not
-    function approve(address _spender, uint256 _value) returns (bool success);
-
-    /// @param _owner The address of the account owning tokens
-    /// @param _spender The address of the account able to transfer the tokens
-    /// @return Amount of remaining tokens allowed to spent
-    function allowance(address _owner, address _spender) constant returns (uint256 remaining);
-
-    event Transfer(address indexed _from, address indexed _to, uint256 _value);
-    event Approval(address indexed _owner, address indexed _spender, uint256 _value);
+contract MigrationAgent {
+    function migrateFrom(address _from, uint256 _value);
 }
 
-contract GolemNetworkToken is ERC20TokenInterface {
-    string public standard = 'Token 0.1'; // TODO: I think we should remove it.
-
+contract GolemNetworkToken {
     string public constant name = "Golem Network Token";
-    uint8 public constant decimals = 10^18; // TODO
+    uint8 public constant decimals = 10^18; // TODO: Set before crowdsale!
     string public constant symbol = "GNT";
 
+    // TODO: Set these params before crowdsale!
     uint256 constant percentTokensForFounder = 18;
-    uint256 constant tokensPerWei = 1;
-    uint256 constant fundingMax = 847457627118644067796611 * tokensPerWei;
-    uint256 fundingStart;
-    uint256 fundingEnd;
-    address founder;
+    uint256 constant tokenCreationRate = 1;
+    // The funding cap in wei.
+    uint256 constant fundingMax = 847457627118644067796611 * tokenCreationRate;
 
+    uint256 fundingStartBlock;
+    uint256 fundingEndBlock;
+
+    address public founder;
+
+    uint256 totalTokens;
     mapping (address => uint256) balances;
     mapping (address => mapping (address => uint256)) allowed;
 
-    function GolemNetworkToken(address _founder, uint256 _fundingStart,
-                               uint256 _fundingEnd) {
+    address public migrationAgent;
+    uint256 public totalMigrated;
+
+    event Transfer(address indexed _from, address indexed _to, uint256 _value);
+    event Approval(address indexed _owner, address indexed _spender, uint256 _value);
+    event Migrate(address indexed _from, address indexed _to, uint256 _value);
+
+    function GolemNetworkToken(address _founder, uint256 _fundingStartBlock,
+                               uint256 _fundingEndBlock) {
         founder = _founder;
-        fundingStart = _fundingStart;
-        fundingEnd = _fundingEnd;
+        fundingStartBlock = _fundingStartBlock;
+        fundingEndBlock = _fundingEndBlock;
     }
 
+    // ERC20 Token Interface:
+
     function transfer(address _to, uint256 _value) returns (bool success) {
-        // Lock transfer until the funding is finished.
-        // TODO: waiting for finalization might be an issue as it depends on
-        //       the founder and can never happen.
-        if (!fundingFinalized()) throw;
-        if (balances[msg.sender] >= _value && _value > 0) {
+        if (transferEnabled() && balances[msg.sender] >= _value && _value > 0) {
             balances[msg.sender] -= _value;
             balances[_to] += _value;
             Transfer(msg.sender, _to, _value);
@@ -77,9 +50,10 @@ contract GolemNetworkToken is ERC20TokenInterface {
         return false;
     }
 
-    function transferFrom(address _from, address _to, uint256 _value) returns (bool success) {
-        if (!fundingFinalized()) throw;
-        if (balances[_from] >= _value && allowed[_from][msg.sender] >= _value && _value > 0) {
+    function transferFrom(address _from, address _to, uint256 _value)
+            returns (bool success) {
+        if (transferEnabled() && balances[_from] >= _value &&
+                allowed[_from][msg.sender] >= _value && _value > 0) {
             balances[_to] += _value;
             balances[_from] -= _value;
             allowed[_from][msg.sender] -= _value;
@@ -87,6 +61,10 @@ contract GolemNetworkToken is ERC20TokenInterface {
             return true;
         }
         return false;
+    }
+
+    function totalSupply() constant returns (uint256) {
+        return totalTokens;
     }
 
     function balanceOf(address _owner) constant returns (uint256 balance) {
@@ -103,31 +81,62 @@ contract GolemNetworkToken is ERC20TokenInterface {
         return allowed[_owner][_spender];
     }
 
+    // Token migration support:
+
+    function migrationEnabled() constant returns (bool) {
+        return migrationAgent != 0;
+    }
+
+    function migrate(uint256 _value) {
+        if (!migrationEnabled()) throw;
+        if (!transferEnabled()) throw;
+        if (balances[msg.sender] < _value) throw;
+        if (_value == 0) throw;
+
+        balances[msg.sender] -= _value;
+        totalTokens -= _value;
+        totalMigrated += _value;
+        MigrationAgent(migrationAgent).migrateFrom(msg.sender, _value);
+        Migrate(msg.sender, migrationAgent, _value);
+    }
+
+    function setMigrationAgent(address _agent) external {
+        if (msg.sender != founder) throw;
+        if (migrationEnabled()) throw;  // Do not allow changing the importer.
+        migrationAgent = _agent;
+    }
+
+    // Crowdfunding:
+
     // Helper function to check if the funding has ended. It also handles the
     // case where `fundingEnd` has been zerod.
     function fundingHasEnded() constant returns (bool) {
-        if (block.number > fundingEnd)
+        if (block.number > fundingEndBlock)
             return true;
 
         // The funding is ended also if the cap is reached.
-        return totalSupply == fundingMax;
+        return totalTokens == fundingMax;
     }
 
     function fundingFinalized() constant returns (bool) {
-        return fundingEnd == 0;
+        return fundingEndBlock == 0;
     }
 
     // Are we in the funding period?
     function fundingOngoing() constant returns (bool) {
         if (fundingHasEnded())
             return false;
-        return block.number >= fundingStart;
+        return block.number >= fundingStartBlock;
+    }
+
+    function transferEnabled() constant returns (bool) {
+        return fundingHasEnded();
     }
 
     // Helper function to get number of tokens left during the funding.
     // This is also a public function to allow better Dapps integration.
     function numberOfTokensLeft() constant returns (uint256) {
-        return fundingMax - totalSupply;
+        return fundingMax - totalTokens;
     }
 
     function changeFounder(address _newFounder) external {
@@ -141,7 +150,7 @@ contract GolemNetworkToken is ERC20TokenInterface {
         // Only in funding period.
         if (!fundingOngoing()) throw;
 
-        var numTokens = msg.value * tokensPerWei;
+        var numTokens = msg.value * tokenCreationRate;
         if (numTokens == 0) throw;
 
         // Do not allow generating more than the cap.
@@ -153,7 +162,7 @@ contract GolemNetworkToken is ERC20TokenInterface {
 
         // Assigne new tokens to the sender
         balances[msg.sender] += numTokens;
-        totalSupply += numTokens;
+        totalTokens += numTokens;
         // Notify about the token generation with a transfer event from 0 address.
         Transfer(0, msg.sender, numTokens);
     }
@@ -176,14 +185,14 @@ contract GolemNetworkToken is ERC20TokenInterface {
         if (!fundingHasEnded()) throw;
 
         // Generate additional tokens for the Founder.
-        var additionalTokens = totalSupply * percentTokensForFounder / (100 - percentTokensForFounder);
+        var additionalTokens = totalTokens * percentTokensForFounder / (100 - percentTokensForFounder);
         balances[founder] += additionalTokens;
-        totalSupply += additionalTokens;
+        totalTokens += additionalTokens;
 
         // Cleanup. Remove all data not needed any more.
         // Also zero the founder address to indicate that funding has been
         // finalized.
-        fundingStart = 0;
-        fundingEnd = 0;
+        fundingStartBlock = 0;
+        fundingEndBlock = 0;
     }
 }
