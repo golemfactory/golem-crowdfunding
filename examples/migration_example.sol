@@ -5,7 +5,7 @@ contract GNTTargetToken {
     address migrationAgent;
 
     // ERC20 variables
-    uint256 totalTokens;
+    uint256 totalSupply;
     mapping (address => uint256) balances;
     mapping (address => mapping (address => uint256)) allowed;
 
