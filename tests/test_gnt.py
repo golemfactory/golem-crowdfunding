@@ -58,6 +58,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
     def balance_of(self, addr_idx):
         return self.c.balanceOf(tester.accounts[addr_idx])
 
+    def transfer(self, sender, to, value):
+        return self.c.transfer(to, value, sender=sender)
+
     def test_deployment(self):
         founder = tester.accounts[2]
         c, g = self.deploy_contract(founder, 5, 105)
@@ -231,3 +234,28 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         assert self.balance_of(1) == value_1 - value_2
         assert self.balance_of(2) == value_2
+
+    # Check if the transfer() is locked during the funding period.
+    def test_transfer_locked(self):
+        addr, _ = self.deploy_contract(tester.a0, 1, 1)
+
+        assert not self.c.fundingOngoing()
+        assert not self.c.transferEnabled()
+
+        self.state.mine(1)
+        assert self.c.fundingOngoing()
+        value = 1 * denoms.ether
+        # Create tokens for 1 ether.
+        self.state.send(tester.k1, addr, value)
+        assert self.balance_of(1) == value
+
+        # At this point a1 has GNT but cannot frasfer them.
+        assert not self.c.transferEnabled()
+        assert self.transfer(tester.k1, tester.a2, value) is False
+
+        # Funding has ended.
+        self.state.mine(1)
+        assert self.c.transferEnabled()
+        assert self.transfer(tester.k1, tester.a2, value) is True
+        assert self.balance_of(1) == 0
+        assert self.balance_of(2) == value
