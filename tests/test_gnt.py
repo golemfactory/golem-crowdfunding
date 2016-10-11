@@ -65,6 +65,34 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert not self.c.fundingOngoing()
 
     def test_initial_balance(self):
-        founder = tester.accounts[3]
+        founder = tester.accounts[8]
         self.deploy_contract(founder, 5, 105)
         assert self.balance_of(8) == 0
+
+    def test_transfer_enabled_after_end_block(self):
+        founder = tester.accounts[4]
+        self.deploy_contract(founder, 3, 13)
+        assert self.state.block.number == 0 
+	assert not self.c.transferEnabled()
+	for i in range(13):      
+	    self.state.mine()
+	    assert not self.c.transferEnabled()  
+	assert self.state.block.number == 13
+	for i in range(259):
+	    self.state.mine()
+	    assert self.c.transferEnabled()
+
+    def test_transfer_enabled_after_max_fund_reached(self):
+	founder = tester.accounts[2]
+        addr, _ = self.deploy_contract(founder, 3, 7)
+        assert not self.c.transferEnabled()
+        for i in range(3):
+            self.state.mine()
+        assert not self.c.transferEnabled()
+        self.state.send(tester.keys[0], addr, 11)
+	assert not self.c.transferEnabled() 
+        self.state.send(tester.keys[1], addr, 847457627118644067796600)
+	assert self.c.transferEnabled()
+	for i in range(8):
+	    self.state.mine()
+	    assert self.c.transferEnabled()
