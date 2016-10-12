@@ -1,6 +1,9 @@
 import unittest
 from ethereum import abi, tester
+from ethereum.exceptions import InvalidTransaction
+from ethereum.tester import TransactionFailed
 from ethereum.utils import denoms
+from rlp.exceptions import ObjectSerializationError
 from rlp.utils import decode_hex
 
 tester.serpent = True  # tester tries to load serpent module, prevent that.
@@ -76,7 +79,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         # before funding
         self.state.mine(1)
-        with self.assertRaises(Exception):
+        with self.assertRaises(TransactionFailed):
             self.state.send(tester.k1, c_addr, value)
 
         # during funding
@@ -85,7 +88,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         # after funding
         self.state.mine(1)
-        with self.assertRaises(Exception):
+        with self.assertRaises(TransactionFailed):
             self.state.send(tester.k1, c_addr, value)
 
     def test_payable_amounts(self):
@@ -97,16 +100,16 @@ class GNTCrowdfundingTest(unittest.TestCase):
         tokens_max = self.c.numberOfTokensLeft()
 
         # invalid values
-        with self.assertRaises(Exception):
+        with self.assertRaises(TransactionFailed):
             self.state.send(tester.k1, c_addr, 0)
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(ObjectSerializationError):
             self.state.send(tester.k1, c_addr, -1)  # to uint256
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(ObjectSerializationError):
             self.state.send(tester.k1, c_addr, -1 * 10 ** -255)  # to uint256
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(InvalidTransaction):
             self.state.send(tester.k1, c_addr, 2 ** 260)
 
         # changing balance
@@ -123,7 +126,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.c.totalSupply() == tokens_max - value
 
         # more than available tokens
-        with self.assertRaises(Exception):
+        with self.assertRaises(TransactionFailed):
             self.state.send(tester.k2, c_addr, 2 * value)
 
         # exact amount of available tokens
@@ -132,7 +135,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.c.totalSupply() == tokens_max
 
         # no tokens available
-        with self.assertRaises(Exception):
+        with self.assertRaises(TransactionFailed):
             self.state.send(tester.k2, c_addr, value)
 
     def test_transfer_from_allowances(self):
