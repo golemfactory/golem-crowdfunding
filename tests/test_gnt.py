@@ -3,7 +3,6 @@ from ethereum import abi, tester
 from ethereum.exceptions import InvalidTransaction
 from ethereum.tester import TransactionFailed
 from ethereum.utils import denoms
-from rlp.exceptions import ObjectSerializationError
 from rlp.utils import decode_hex
 
 tester.serpent = True  # tester tries to load serpent module, prevent that.
@@ -99,18 +98,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         tokens_max = self.c.numberOfTokensLeft()
 
-        # invalid values
+        # invalid value
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.k1, c_addr, 0)
-
-        with self.assertRaises(ObjectSerializationError):
-            self.state.send(tester.k1, c_addr, -1)  # to uint256
-
-        with self.assertRaises(ObjectSerializationError):
-            self.state.send(tester.k1, c_addr, -1 * 10 ** -255)  # to uint256
-
-        with self.assertRaises(InvalidTransaction):
-            self.state.send(tester.k1, c_addr, 2 ** 260)
 
         # changing balance
         self.state.send(tester.k1, c_addr, value)
