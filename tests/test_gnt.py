@@ -9,8 +9,8 @@ tester.serpent = True  # tester tries to load serpent module, prevent that.
 # You can use Solidity Browser
 # https://ethereum.github.io/browser-solidity/#version=soljson-v0.4.2+commit.af6afb04.js&optimize=true
 # to work on and update the Token.
-GNT_INIT = decode_hex(open('tests/bin', 'r').read()[:-1])
-GNT_ABI = open('tests/abi', 'r').read()
+GNT_INIT = decode_hex(open('tests/GolemNetworkToken.bin', 'r').read()[:-1])
+GNT_ABI = open('tests/GolemNetworkToken.abi', 'r').read()
 
 class GNTCrowdfundingTest(unittest.TestCase):
 
