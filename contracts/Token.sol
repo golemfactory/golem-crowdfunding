@@ -6,20 +6,23 @@ contract MigrationAgent {
 
 contract GolemNetworkToken {
     string public constant name = "Golem Network Token";
-    uint8 public constant decimals = 10^18; // TODO: Set before crowdsale!
+    uint8 public constant decimals = 10^18; // TODO: SET before THE CROWDSALE!
     string public constant symbol = "GNT";
 
-    // TODO: Set these params before crowdsale!
-    uint256 constant percentTokensForFounder = 18;
-    uint256 constant tokenCreationRate = 1;
+    // TODO: SET these PARAMS before THE CROWDSALE!
+    uint256 constant percentTokensForFounder = 12;
+    uint256 constant percentTokensForDevelopers = 6;
+    uint256 constant tokenCreationRate = 1000;
+    
     // The funding cap in wei.
     uint256 constant fundingMax = 847457627118644067796611 * tokenCreationRate;
 
     uint256 fundingStartBlock;
     uint256 fundingEndBlock;
-
-    address public founder;
-
+ 
+    address public founder;  
+    address public devAddress;  //Address 
+    
     uint256 totalTokens;
     mapping (address => uint256) balances;
     mapping (address => mapping (address => uint256)) allowed;
@@ -31,15 +34,16 @@ contract GolemNetworkToken {
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
     event Migrate(address indexed _from, address indexed _to, uint256 _value);
 
-    function GolemNetworkToken(address _founder, uint256 _fundingStartBlock,
+    function GolemNetworkToken(address _founder, address _devAddress, uint256 _fundingStartBlock,
                                uint256 _fundingEndBlock) {
         founder = _founder;
+        devAddress = _devAddress;
         fundingStartBlock = _fundingStartBlock;
         fundingEndBlock = _fundingEndBlock;
     }
 
     // ERC20 Token Interface:
-
+    
     function transfer(address _to, uint256 _value) returns (bool success) {
         if (transferEnabled() && balances[msg.sender] >= _value && _value > 0) {
             balances[msg.sender] -= _value;
@@ -145,54 +149,64 @@ contract GolemNetworkToken {
             founder = _newFounder;
     }
 
-    // If in the funding period, generate tokens for incoming ethers.
+    // If during the funding period, generate tokens for incoming ethers and finalize funding in case, cap was reached.
+    // After the funding period - finalize funding
     function() payable external {
-        // Only in funding period.
-        if (!fundingOngoing()) throw;
-
-        var numTokens = msg.value * tokenCreationRate;
-        if (numTokens == 0) throw;
-
-        // Do not allow generating more than the cap.
-        // UI should known that and propose available number of tokens,
-        // but still it is a race condition.
-        // Alternatively, we can generate up the cap and return the left ether
-        // to the sender. But calling unknown addresses is a sequrity risk.
-        if (numTokens > numberOfTokensLeft()) throw;
-
-        // Assigne new tokens to the sender
-        balances[msg.sender] += numTokens;
-        totalTokens += numTokens;
-        // Notify about the token generation with a transfer event from 0 address.
-        Transfer(0, msg.sender, numTokens);
-    }
-
-    // Allow the Founder to transfer ethers from the funding to its account.
-    // This can be done only after the funding has endned but multiple times
-    // in case someone accedentially deposits any ether in the Token contract.
-    function transferEtherToFounder() external {
-        // Only after the funding has ended.
-        if (msg.sender != founder) throw;
-        if (!fundingHasEnded()) throw;
-
-        if (!founder.send(this.balance)) throw;
-    }
-
-    // Finalize the funding period
-    function finalizeFunding() external {
         if (fundingFinalized()) throw;
-        if (msg.sender != founder) throw;
-        if (!fundingHasEnded()) throw;
 
-        // Generate additional tokens for the Founder.
-        var additionalTokens = totalTokens * percentTokensForFounder / (100 - percentTokensForFounder);
-        balances[founder] += additionalTokens;
+        if (fundingHasEnded()) {
+            // Do not allow any eth transfer in this case
+            if(msg.value > 0) throw;
+            
+            // Finalize funding in case the cap was not reached but the funding has ended
+            finalizeFunding();
+        }
+        else {
+            // Only in funding period.
+            if (!fundingOngoing()) throw;
+
+            var numTokens = msg.value * tokenCreationRate;
+            if (numTokens == 0) throw;
+
+            // Do not allow generating more than the cap.
+            // UI should known that and propose available number of tokens,
+            // but still it is a race condition.
+            // Alternatively, we can generate up the cap and return the left ether
+            // to the sender. But calling unknown addresses is a sequrity risk.
+            if (numTokens > numberOfTokensLeft()) throw;
+
+            // Assigne new tokens to the sender
+            balances[msg.sender] += numTokens;
+            totalTokens += numTokens;
+            // Notify about the token generation with a transfer event from 0 address.
+            Transfer(0, msg.sender, numTokens);
+            
+            if (0 == numberOfTokensLeft()) {
+                // Cap reached - finalize funding
+                finalizeFunding();                
+            }
+        }
+    }
+
+    function finalizeFunding() private {
+        // Transfer ETH to the founder address
+        if (!founder.send(this.balance)) throw;
+        
+        // Generate additional tokens for the Founder and the developers.
+        var additionalTokens = totalTokens * (percentTokensForFounder + percentTokensForDevelopers) / (100 - percentTokensForFounder - percentTokensForDevelopers);
+        
+        var tokensForFounder   = additionalTokens * percentTokensForFounder / (percentTokensForFounder + percentTokensForDevelopers);
+        var tokensForDevelpers = additionalTokens - tokensForFounder;
+ 
+        balances[founder] += tokensForFounder;
+        balances[devAddress] += tokensForDevelpers;
+        
         totalTokens += additionalTokens;
 
         // Cleanup. Remove all data not needed any more.
         // Also zero the founder address to indicate that funding has been
         // finalized.
         fundingStartBlock = 0;
-        fundingEndBlock = 0;
+        fundingEndBlock = 0;    
     }
 }
