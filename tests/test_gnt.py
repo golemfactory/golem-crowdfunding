@@ -68,9 +68,66 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert not self.c.fundingOngoing()
 
     def test_initial_balance(self):
-        founder = tester.accounts[3]
+        founder = tester.accounts[8]
         self.deploy_contract(founder, 5, 105)
         assert self.balance_of(8) == 0
+
+    def test_transfer_enabled_after_end_block(self):
+        founder = tester.accounts[4]
+        self.deploy_contract(founder, 3, 13)
+        assert self.state.block.number == 0 
+        assert not self.c.transferEnabled()
+        for _ in range(13):
+            self.state.mine()
+            assert not self.c.transferEnabled()
+        assert self.state.block.number == 13
+        for _ in range(259):
+            self.state.mine()
+            assert self.c.transferEnabled()
+
+    def test_transfer_enabled_after_max_fund_reached(self):
+        founder = tester.accounts[2]
+        addr, _ = self.deploy_contract(founder, 3, 7)
+        assert not self.c.transferEnabled()
+        for _ in range(3):
+            self.state.mine()
+            assert not self.c.transferEnabled()
+        self.state.send(tester.keys[0], addr, 11)
+        assert not self.c.transferEnabled()
+        self.state.send(tester.keys[1], addr, 847457627118644067796600)
+        assert self.c.transferEnabled()
+        for _ in range(8):
+            self.state.mine()
+            assert self.c.transferEnabled()
+
+    def test_total_supply(self):
+        founder = tester.accounts[7]
+        addr, _ = self.deploy_contract(founder, 2, 4)
+        assert self.c.totalSupply() == 0
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.keys[3], addr, 6611)
+        assert self.c.totalSupply() == 0
+        self.state.mine(2)
+        assert self.c.totalSupply() == 0
+        self.state.send(tester.keys[3], addr, 6611)
+        assert self.c.totalSupply() == 6611
+        self.state.send(tester.keys[0], addr, 389)
+        assert self.c.totalSupply() == 7000
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.keys[0], addr, 0)
+        assert self.c.totalSupply() == 7000
+        self.state.send(tester.keys[7], addr, 1)
+        assert self.c.totalSupply() == 7001
+        self.state.mine(3)
+        assert self.c.totalSupply() == 7001
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.keys[7], addr, 10)
+        assert self.c.totalSupply() == 7001
+        self.c.finalizeFunding(sender=tester.keys[7])
+        assert self.c.totalSupply() == 8537
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.keys[1], addr, 10)
+        assert self.c.totalSupply() == 8537
 
     def test_payable_period(self):
         c_addr, _ = self.deploy_contract(tester.a0, 2, 2)
