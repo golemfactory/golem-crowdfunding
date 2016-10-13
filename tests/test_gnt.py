@@ -81,31 +81,39 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert not self.c.transferEnabled()
         for _ in range(13):
             self.state.mine()
+            # 1.4
             assert not self.c.transferEnabled()
         assert self.state.block.number == 13
         for _ in range(259):
             self.state.mine()
+            # 1.3
             assert self.c.transferEnabled()
 
     def test_transfer_enabled_after_max_fund_reached(self):
         founder = tester.accounts[2]
         addr, _ = self.deploy_contract(founder, 3, 7)
+        # 8.2
         assert not self.c.transferEnabled()
         for _ in range(3):
             self.state.mine()
+            # 8.4
             assert not self.c.transferEnabled()
         self.state.send(tester.keys[0], addr, 11)
+        # 5.2
         assert not self.c.transferEnabled()
         self.state.send(tester.keys[1], addr, 847457627118644067796600)
+        # 8.3
         assert self.c.transferEnabled()
         for _ in range(8):
             self.state.mine()
+            # 5.5
             assert self.c.transferEnabled()
 
     def test_total_supply(self):
         founder = tester.accounts[7]
         addr, _ = self.deploy_contract(founder, 2, 4)
         assert self.c.totalSupply() == 0
+        # 3.2
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.keys[3], addr, 6611)
         assert self.c.totalSupply() == 0
@@ -115,6 +123,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.c.totalSupply() == 6611000
         self.state.send(tester.keys[0], addr, 389)
         assert self.c.totalSupply() == 7000000
+        # 1.3, 6.3
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.keys[0], addr, 0)
         assert self.c.totalSupply() == 7000000
@@ -122,6 +131,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.c.totalSupply() == 7001000
         self.state.mine(3)
         assert self.c.totalSupply() == 7001000
+        # 3.2
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.keys[7], addr, 10)
         supplyBeforeEndowment = self.c.totalSupply()
@@ -137,21 +147,31 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.state.send(tester.keys[1], addr, 10)
         assert self.c.totalSupply() == supplyAfterEndowment
 
+        # assert self.c.totalSupply() == 8537
+        # # 8.4
+        # with self.assertRaises(TransactionFailed):
+        #     self.state.send(tester.keys[1], addr, 10)
+        # # 6.3, 6.4, 8.5
+        # assert self.c.totalSupply() == 8537
+
     def test_payable_period(self):
         c_addr, _ = self.deploy_contract(tester.a0, 2, 2)
         value = 3 * denoms.ether
 
         # before funding
         self.state.mine(1)
+        # 1.4
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.k1, c_addr, value)
 
         # during funding
         self.state.mine(1)
+        # 1.3
         self.state.send(tester.k1, c_addr, value)
 
         # after funding
         self.state.mine(1)
+        # 1.4
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.k1, c_addr, value)
 
@@ -183,6 +203,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.c.totalSupply() == tokens_max - numTokensCreated
 
         # more than available tokens
+        # 5.3
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.k2, c_addr, 2 * value)
 

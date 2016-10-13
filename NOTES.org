@@ -1,0 +1,51 @@
+token definitions:
+sender: person sending the token
+receiver: person receiving the token
+
+founding process definitions:
+founder: self-explanatory
+backing: act of sending money to contract
+backer: person who backs Golem
+crowdfunding: time when backing is done
+withdrawal: act of taking ethers from contract by founder
+
+1) contract has a starting TSTART and ending TEND point in time t
+   1) at creation moment t < TSTART
+   2) TSTART < TEND
+   3) * backing is possible if t >= TSTART AND t <= TEND
+   4) * backing is not possible if t < TSTART or t > TEND
+2) crowdfunding can be ended prematurely
+   1) it can be ended if t >= TSTART and t < TEND
+   2) if can't be ended if t < TSTART or t > TEND
+3) ended crowdfunding prevents backing
+   1) * backing is not possible if crowdfunding is ended
+   2) * backing is not possible if t < TSTART or t > TEND
+4) withdrawal is possible only after end of crowdfunding
+   1) withdrawal is possible if t > TEND OR crowdfunding has ended
+   2) only founder can withdraw money
+   3) failed withdrawal does not make money disappear
+5) crowdfunding has an upper limit LIMIT
+   1) LIMIT > 0
+   2) * backing is possible if CURRENT + AMOUNT <= LIMIT
+   3) * backing is not possible if CURRENT + AMOUNT > LIMIT
+   4) backing can't generate more than LIMIT*M GNT on all balances
+   5) * backing to the LIMIT enables transfer
+6) backing bumps backers token account proportionally to multiplier M
+   1) backing bumps backer's account by amount*M
+   2) backing does not bump someone else's account
+   3) * sum of ETH in contract is equal to amount of backing in ETH
+   4) * sum of GNT in token contract is equal to amount of backing in ETH * M
+7) founder can be changed
+   1) founder can appoint other founder
+   2) non-founder can't change founder
+8) transfer is possible if crowdfunding has ended
+   1) transfer is possible if t > TEND
+   2) * transfer is not possible if t < TSTART
+   3) * transfer is possible if t > TSTART AND terminated prematurely
+   4) * transfer is not possible if t < TEND AND not terminated prematurely
+   5) * failed transfer does not change balances or total supply
+9) transfer is correct
+   1) only sender can send his money
+   2) on transfer of X GNT, X is taken from senders account
+   3) on transfer of X GNT, X is added to receivers account
+   4) if transfer fails, money is refunded
