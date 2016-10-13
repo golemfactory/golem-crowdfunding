@@ -1,4 +1,4 @@
-PHONY: tests clean
+.PHONY: tests clean
 
 tests: tests/GolemNetworkToken.abi tests/GolemNetworkToken.bin
 	pytest tests
