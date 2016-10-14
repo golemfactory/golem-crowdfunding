@@ -6,10 +6,10 @@ contract MigrationAgent {
 
 contract GolemNetworkToken {
     string public constant name = "Golem Network Token";
-    uint8 public constant decimals = 10^18; // TODO: Set before crowdsale!
+    uint8 public constant decimals = 10^18; // TODO: Set before crowdfunding!
     string public constant symbol = "GNT";
 
-    // TODO: Set these params before crowdsale!
+    // TODO: Set these params before crowfunding!
     uint256 constant percentTokensForFounder = 18;
     uint256 constant tokenCreationRate = 1;
     // The funding cap in wei.
