@@ -127,9 +127,12 @@ class GNTCrowdfundingTest(unittest.TestCase):
         supplyBeforeEndowment = self.c.totalSupply()
         assert supplyBeforeEndowment == 7001000
         self.c.finalizeFunding(sender=tester.keys[7])
-        supplyAfterEndowment = supplyBeforeEndowment + \
-            (supplyBeforeEndowment * 18 / 82)
-        assert self.c.totalSupply() == supplyAfterEndowment
+        supplyAfterEndowment = self.c.totalSupply()
+        endowmentPercent = (supplyAfterEndowment - supplyBeforeEndowment) \
+            / float(supplyAfterEndowment)
+        epsilon = 0.0001
+        assert endowmentPercent < 0.18 + epsilon
+        assert endowmentPercent > 0.18 - epsilon
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.keys[1], addr, 10)
         assert self.c.totalSupply() == supplyAfterEndowment
