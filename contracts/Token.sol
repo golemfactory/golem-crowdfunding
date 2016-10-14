@@ -6,14 +6,14 @@ contract MigrationAgent {
 
 contract GolemNetworkToken {
     string public constant name = "Golem Network Token";
-    uint8 public constant decimals = 10^18; // TODO: Set before crowdfunding!
     string public constant symbol = "GNT";
+    uint8 public constant decimals = 18;  // 18 decimal places, the same as ETH.
 
     // TODO: Set these params before crowfunding!
     uint256 constant percentTokensForFounder = 18;
-    uint256 constant tokenCreationRate = 1;
-    // The funding cap in wei.
-    uint256 constant fundingMax = 847457627118644067796611 * tokenCreationRate;
+    uint256 public constant tokenCreationRate = 1000;
+    // The token creation cap for the the funding period.
+    uint256 constant fundingTokenCreationMax = 847457627118644067796611 * tokenCreationRate;
 
     uint256 fundingStartBlock;
     uint256 fundingEndBlock;
@@ -114,8 +114,9 @@ contract GolemNetworkToken {
         if (block.number > fundingEndBlock)
             return true;
 
-        // The funding is ended also if the cap is reached.
-        return totalTokens == fundingMax;
+        // The funding is ended also if the token creation cap is reached
+        // (or overpassed in case of bug in some other part of the code).
+        return totalTokens >= fundingTokenCreationMax;
     }
 
     function fundingFinalized() constant returns (bool) {
@@ -136,7 +137,9 @@ contract GolemNetworkToken {
     // Helper function to get number of tokens left during the funding.
     // This is also a public function to allow better Dapps integration.
     function numberOfTokensLeft() constant returns (uint256) {
-        return fundingMax - totalTokens;
+        if (fundingHasEnded())
+            return 0;
+        return fundingTokenCreationMax - totalTokens;
     }
 
     function changeFounder(address _newFounder) external {
