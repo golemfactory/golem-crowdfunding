@@ -136,8 +136,7 @@ contract GolemNetworkToken {
     // Helper function to check if the funding has ended. It also handles the
     // case where 'fundingEnd' has been zeroed.
     function fundingHasEnded() constant returns (bool) {
-        if (block.number > fundingEndBlock)
-            return true;
+        return block.number > fundingEndBlock;
     }
 
     function fundingNotStarted() constant returns (bool) {
