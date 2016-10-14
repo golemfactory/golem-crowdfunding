@@ -12,8 +12,8 @@ contract GolemNetworkToken {
     // TODO: Set these params before crowfunding!
     uint256 constant percentTokensForFounder = 18;
     uint256 public constant tokenCreationRate = 1000;
-    // The token creation cap for the the funding period.
-    uint256 constant fundingTokenCreationMax = 847457627118644067796611 * tokenCreationRate;
+    // The token creation cap without endowment.
+    uint256 constant tokenCreationCap = 847457627118644067796611 * tokenCreationRate;
 
     uint256 fundingStartBlock;
     uint256 fundingEndBlock;
@@ -115,8 +115,8 @@ contract GolemNetworkToken {
             return true;
 
         // The funding is ended also if the token creation cap is reached
-        // (or overpassed in case of bug in some other part of the code).
-        return totalTokens >= fundingTokenCreationMax;
+        // (or overpassed in case of generation of endowment).
+        return totalTokens >= tokenCreationCap;
     }
 
     function fundingFinalized() constant returns (bool) {
@@ -139,7 +139,7 @@ contract GolemNetworkToken {
     function numberOfTokensLeft() constant returns (uint256) {
         if (fundingHasEnded())
             return 0;
-        return fundingTokenCreationMax - totalTokens;
+        return tokenCreationCap - totalTokens;
     }
 
     function changeFounder(address _newFounder) external {
