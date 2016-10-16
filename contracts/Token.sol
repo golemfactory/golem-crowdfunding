@@ -183,7 +183,7 @@ contract GolemNetworkToken {
     function finalizeFunding() external {
         if (fundingFinalized()) throw;
         if (fundingNotStarted()) throw;
-        if (fundingOngoing() && numberOfTokensLeft() > 0) throw;
+        if (!fundingHasEnded() && numberOfTokensLeft() > 0) throw;
         
         // 1. Transfer ETH to the crowdfundingAgent address
         if (!crowdfundingAgent.send(this.balance)) throw;
