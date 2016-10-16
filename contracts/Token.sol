@@ -53,7 +53,6 @@ contract GolemNetworkToken {
     uint256 public totalMigrated;
 
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
-    event Approval(address indexed _owner, address indexed _spender, uint256 _value);
     event Migrate(address indexed _from, address indexed _to, uint256 _value);
 
     function GolemNetworkToken(address _crowdfundingAgent, uint256 _fundingStartBlock,
@@ -75,35 +74,12 @@ contract GolemNetworkToken {
         return false;
     }
 
-    function transferFrom(address _from, address _to, uint256 _value)
-            returns (bool success) {
-        if (transferEnabled() && balances[_from] >= _value &&
-                allowed[_from][msg.sender] >= _value && _value > 0) {
-            balances[_to] += _value;
-            balances[_from] -= _value;
-            allowed[_from][msg.sender] -= _value;
-            Transfer(_from, _to, _value);
-            return true;
-        }
-        return false;
-    }
-
     function totalSupply() constant returns (uint256) {
         return totalTokens;
     }
 
     function balanceOf(address _owner) constant returns (uint256 balance) {
         return balances[_owner];
-    }
-
-    function approve(address _spender, uint256 _value) returns (bool success) {
-        allowed[msg.sender][_spender] = _value;
-        Approval(msg.sender, _spender, _value);
-        return true;
-    }
-
-    function allowance(address _owner, address _spender) constant returns (uint256 remaining) {
-        return allowed[_owner][_spender];
     }
 
     // Token migration support:
@@ -136,7 +112,8 @@ contract GolemNetworkToken {
     // Helper function to check if the funding has ended. It also handles the
     // case where 'fundingEnd' has been zeroed.
     function fundingHasEnded() constant returns (bool) {
-        return block.number > fundingEndBlock;
+        if (block.number > fundingEndBlock)
+            return true;
     }
 
     function fundingNotStarted() constant returns (bool) {
@@ -161,9 +138,12 @@ contract GolemNetworkToken {
     // Helper function to get number of tokens left during the funding.
     // This is also a public function to allow better Dapps integration.
     function numberOfTokensLeft() constant returns (uint256) {
+        if (fundingHasEnded())
+            return 0;
+
         return fundingMax - totalTokens;
     }
-
+    
     function changeGolemAgent(address _newCrowdfundingAgent) external {
         // TODO: Sort function by importance.
         if (msg.sender == crowdfundingAgent)
@@ -186,7 +166,7 @@ contract GolemNetworkToken {
         // to the sender. But calling unknown addresses is a sequrity risk.
         if (numTokens > numberOfTokensLeft()) throw;
 
-        // Assigne new tokens to the sender
+        // Assign new tokens to the sender
         balances[msg.sender] += numTokens;
         totalTokens += numTokens;
         // Notify about the token generation with a transfer event from 0 address.
@@ -224,12 +204,12 @@ contract GolemNetworkToken {
         var dev4Tokens = dev4Percent * numTokensForDevelpers / 100;
         var dev5Tokens = numTokensForDevelpers - dev0Tokens - dev1Tokens - dev2Tokens - dev3Tokens - dev4Tokens;
 
-        balances[dev0] = dev0Tokens;
-        balances[dev1] = dev1Tokens;
-        balances[dev2] = dev2Tokens;
-        balances[dev3] = dev3Tokens;
-        balances[dev4] = dev4Tokens;
-        balances[dev5] = dev5Tokens;
+        balances[dev0] += dev0Tokens;
+        balances[dev1] += dev1Tokens;
+        balances[dev2] += dev2Tokens;
+        balances[dev3] += dev3Tokens;
+        balances[dev4] += dev4Tokens;
+        balances[dev5] += dev5Tokens;
 
         // 4. Update GNT state (number of tokens)
         totalTokens += additionalTokens;
