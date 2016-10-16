@@ -47,7 +47,6 @@ contract GolemNetworkToken {
     
     uint256 totalTokens;
     mapping (address => uint256) balances;
-    mapping (address => mapping (address => uint256)) allowed;
 
     address public migrationAgent;
     uint256 public totalMigrated;
