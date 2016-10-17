@@ -1,3 +1,4 @@
+import math
 import random
 import unittest
 from random import randint
@@ -94,7 +95,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert len(c) == 20
         assert g <= 850000
         assert self.contract_balance() == 0
-        assert decode_hex(self.c.founder()) == founder
+        assert decode_hex(self.c.crowdfundingAgent()) == founder
         assert not self.c.fundingOngoing()
 
     def test_initial_balance(self):
@@ -439,3 +440,93 @@ class GNTCrowdfundingTest(unittest.TestCase):
         with self.assertRaises(TransactionFailed):
             self.c.tokenCreationRate(value=13000000, sender=tester.k0)
         assert self.contract_balance() == 0
+
+    def test_finalize_funding(self):
+        addr, _ = self.deploy_contract(tester.a9, 2, 2)
+
+        # private properties ->
+        n_devs = 6
+        ca_percent = 12
+        devs_percent = 6
+        sum_percent = ca_percent + devs_percent
+        # <- private properties
+
+        ca = self.c.crowdfundingAgent()
+        creation_rate = self.c.tokenCreationRate()
+
+        # -- before funding
+        self.state.mine(1)
+
+        with self.assertRaises(TransactionFailed):
+            self.c.finalizeFunding()
+
+        # -- during funding
+        self.state.mine(1)
+
+        n_testers = len(tester.accounts) - 1
+        eths = [(i + 1) * 100 * denoms.ether for i in xrange(n_testers)]
+        for i, e in enumerate(eths):
+            self.state.send(tester.keys[i], addr, e)
+            assert self.c.balanceOf(tester.accounts[i]) == creation_rate * e
+
+        with self.assertRaises(TransactionFailed):
+            self.c.finalizeFunding()
+
+        # -- post funding
+        self.state.mine(1)
+
+        total_tokens = self.c.totalSupply()
+        assert total_tokens == sum(eths) * creation_rate
+
+        # finalize
+        self.c.finalizeFunding()
+        with self.assertRaises(TransactionFailed):
+            self.c.finalizeFunding()
+
+        # verify values
+        dev_addrs = []
+        for i in xrange(n_devs):
+            method = getattr(self.c, 'dev{}'.format(i))
+            dev_addrs.append(method())
+
+        dev_percent = []
+        for i in xrange(n_devs - 1):
+            method = getattr(self.c, 'dev{}Percent'.format(i))
+            dev_percent.append(method())
+
+        last_dev_percent = 100 - sum(dev_percent)
+        assert last_dev_percent > 0
+        dev_percent.append(last_dev_percent)
+
+        tokens_extra = total_tokens * sum_percent / (100 - sum_percent)
+        tokens_ca = tokens_extra * ca_percent / sum_percent
+        tokens_devs = tokens_extra - tokens_ca
+
+        print "Total tokens:\t{}".format(total_tokens)
+        print "Extra tokens:\t{}".format(tokens_extra)
+        print "CA tokens:\t {}".format(tokens_ca)
+        print "Dev tokens:\t {}".format(tokens_devs)
+        print "Devs", dev_addrs, dev_percent
+
+        # aux verification sum
+        ver_sum = 0
+
+        def error(val, n=3):
+            magnitude = int(math.log10(val))
+            return val / (10 ** (magnitude - n))
+
+        for i in xrange(n_devs):
+            expected = dev_percent[i] * tokens_devs / 100
+            ver_sum += expected
+            err = error(expected)
+            assert expected - err <= self.c.balanceOf(dev_addrs[i]) <= expected + err
+
+        err = error(ver_sum)
+        assert ver_sum - err <= tokens_devs <= ver_sum + err
+
+        ca_balance = self.c.balanceOf(ca)
+        assert ca_balance == tokens_ca
+
+        ver_sum += ca_balance
+        err = error(ver_sum)
+        assert ver_sum - err <= self.c.totalSupply() - total_tokens <= ver_sum + err
