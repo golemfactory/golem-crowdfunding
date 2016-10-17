@@ -20,7 +20,7 @@ contract GolemNetworkToken {
     uint256 fundingStartBlock;
     uint256 fundingEndBlock;
 
-    address public crowdfundingAgent;
+    address public golemFactory;
 
     // TODO: SET before THE CROWDFUNDING!
     // Invariants:
@@ -54,9 +54,9 @@ contract GolemNetworkToken {
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
     event Migrate(address indexed _from, address indexed _to, uint256 _value);
 
-    function GolemNetworkToken(address _crowdfundingAgent, uint256 _fundingStartBlock,
+    function GolemNetworkToken(address _golemFactory, uint256 _fundingStartBlock,
                                uint256 _fundingEndBlock) {
-        crowdfundingAgent = _crowdfundingAgent;
+        golemFactory = _golemFactory;
         fundingStartBlock = _fundingStartBlock;
         fundingEndBlock = _fundingEndBlock;
     }
@@ -101,8 +101,10 @@ contract GolemNetworkToken {
     }
 
     function setMigrationAgent(address _agent) external {
-        if (msg.sender != crowdfundingAgent) throw;
+        if (msg.sender != golemFactory) throw;
+        if (!fundingFinalized()) throw; // Only after the crowdfundin is finalized
         if (migrationEnabled()) throw;  // Do not allow changing the importer.
+        
         migrationAgent = _agent;
     }
 
@@ -146,10 +148,10 @@ contract GolemNetworkToken {
         return tokenCreationCap - totalTokens;
     }
 
-    function changeGolemAgent(address _newCrowdfundingAgent) external {
+    function changeGolemFactory(address _golemFactory) external {
         // TODO: Sort function by importance.
-        if (msg.sender == crowdfundingAgent)
-            crowdfundingAgent = _newCrowdfundingAgent;
+        if (msg.sender == golemFactory)
+            golemFactory = _golemFactory;
     }
 
     // If during the funding period, generate tokens for incoming ethers and finalize funding in case, cap was reached.
@@ -175,8 +177,8 @@ contract GolemNetworkToken {
     }
 
     // If cap was reached or crowdfunding has ended then:
-    // Transfer ETH to the crowdfundingAgent address
-    // Create GNT for the crowdfundingAgent (representing the company)
+    // Transfer ETH to the golemFactory address
+    // Create GNT for the golemFactory (representing the company)
     // Create GNT for the developers
     // Update GNT state (number of tokens)
     // Set finalize flag to true (fundingEndBlock == 0)
@@ -185,16 +187,16 @@ contract GolemNetworkToken {
         if (fundingFinalized()) throw;
         if (!fundingHasEnded()) throw;
 
-        // 1. Transfer ETH to the crowdfundingAgent address
-        if (!crowdfundingAgent.send(this.balance)) throw;
+        // 1. Transfer ETH to the golemFactory address
+        if (!golemFactory.send(this.balance)) throw;
 
-        // 2. Create GNT for the crowdfundingAgent (representing the company)
+        // 2. Create GNT for the golemFactory (representing the company)
         var numAdditionalTokens = totalTokens * (percentTokensForCrowdfundingAgent + percentTokensForDevelopers) / (100 - percentTokensForCrowdfundingAgent - percentTokensForDevelopers);
         var numTokensForGolemAgent = numAdditionalTokens * percentTokensForCrowdfundingAgent / (percentTokensForCrowdfundingAgent + percentTokensForDevelopers);
 
-        balances[crowdfundingAgent] += numTokensForGolemAgent;
+        balances[golemFactory] += numTokensForGolemAgent;
 
-        // 3. Create GNT for the crowdfundingAgent (representing the company)
+        // 3. Create GNT for the golemFactory (representing the company)
         var numTokensForDevelpers  = numAdditionalTokens - numTokensForGolemAgent;
 
         var dev0Tokens = dev0Percent * numTokensForDevelpers / 100;
@@ -216,7 +218,7 @@ contract GolemNetworkToken {
 
         // 5. Set finalize flag to true (fundingEndBlock == 0)
         // Cleanup. Remove all data not needed any more.
-        // Also zero the crowdfundingAgent address to indicate that funding has been
+        // Also zero the golemFactory address to indicate that funding has been // FIXME: what about it?
         // finalized.
         fundingStartBlock = 0;
         fundingEndBlock = 0;
