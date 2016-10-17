@@ -1,3 +1,4 @@
+import random
 import unittest
 from ethereum import abi, tester
 from ethereum.tester import TransactionFailed
@@ -11,8 +12,15 @@ tester.serpent = True  # tester tries to load serpent module, prevent that.
 # You can use Solidity Browser
 # https://ethereum.github.io/browser-solidity/#version=soljson-v0.4.2+commit.af6afb04.js&optimize=true
 # to work on and update the Token.
+
 GNT_INIT = decode_hex(open('tests/GolemNetworkToken.bin', 'r').read().rstrip())
 GNT_ABI = open('tests/GolemNetworkToken.abi', 'r').read()
+
+MIGRATION_INIT = decode_hex(open('tests/MigrationAgent.bin', 'r').read().rstrip())
+MIGRATION_ABI = open('tests/MigrationAgent.abi', 'r').read()
+
+TARGET_INIT = decode_hex(open('tests/GNTTargetToken.bin', 'r').read().rstrip())
+TARGET_ABI = open('tests/GNTTargetToken.abi', 'r').read()
 
 
 class GNTCrowdfundingTest(unittest.TestCase):
@@ -49,6 +57,24 @@ class GNTCrowdfundingTest(unittest.TestCase):
         addr = self.state.evm(GNT_INIT + args,
                               sender=owner.key)
         self.c = tester.ABIContract(self.state, GNT_ABI, addr)
+        return addr, owner.gas()
+
+    def deploy_migration_contract(self, source_contract, creator_idx=9):
+        owner = self.monitor(creator_idx)
+        t = abi.ContractTranslator(MIGRATION_ABI)
+        args = t.encode_constructor_arguments([source_contract])
+        addr = self.state.evm(MIGRATION_INIT + args,
+                              sender=owner.key)
+        self.m = tester.ABIContract(self.state, MIGRATION_ABI, addr)
+        return addr, owner.gas()
+
+    def deploy_target_contract(self, migration_contract, creator_idx=9):
+        owner = self.monitor(creator_idx)
+        t = abi.ContractTranslator(TARGET_ABI)
+        args = t.encode_constructor_arguments([migration_contract])
+        addr = self.state.evm(TARGET_INIT + args,
+                              sender=owner.key)
+        self.t = tester.ABIContract(self.state, TARGET_ABI, addr)
         return addr, owner.gas()
 
     def contract_balance(self):
@@ -220,6 +246,117 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.transfer(tester.k1, tester.a2, tokens) is True
         assert self.balance_of(1) == 0
         assert self.balance_of(2) == tokens
+
+    def test_migration(self):
+        s_addr, _ = self.deploy_contract(tester.a9, 1, 1)
+
+        tokens = 3 * denoms.ether
+
+        # funding
+        self.state.mine(1)
+        self.state.send(tester.k1, s_addr, tokens)
+
+        # migration and target token contracts
+        # funding _should_ already be over (target amount of GNT)
+        m_addr, _ = self.deploy_migration_contract(s_addr)
+        t_addr, _ = self.deploy_target_contract(m_addr)
+
+        source = self.c
+        migration = self.m
+        target = self.t
+
+        creation_rate = source.tokenCreationRate()
+        value = tokens * creation_rate
+
+        assert not source.migrationEnabled()
+
+        source.setMigrationAgent(m_addr, sender=tester.k9)
+        migration.setTargetToken(t_addr, sender=tester.k9)
+
+        assert source.migrationEnabled()
+        assert source.balanceOf(tester.a1) == value
+        assert target.balanceOf(tester.a1) == 0
+
+        with self.assertRaises(TransactionFailed):
+            source.migrate(value, sender=tester.k1)
+
+        # post funding
+        self.state.mine(1)
+
+        with self.assertRaises(TransactionFailed):
+            source.migrate(0, sender=tester.k1)
+
+        with self.assertRaises(TransactionFailed):
+            source.migrate(value + 1, sender=tester.k1)
+
+        with self.assertRaises(TransactionFailed):
+            source.migrate(value, sender=tester.k2)
+
+        source.migrate(value, sender=tester.k1)
+
+        with self.assertRaises(TransactionFailed):
+            source.migrate(value, sender=tester.k1)
+
+        assert source.balanceOf(tester.a1) == 0
+        assert target.balanceOf(tester.a1) == value
+
+        with self.assertRaises(TransactionFailed):
+            source.migrate(value, sender=tester.k1)
+
+        # finalize migration
+        migration.finalizeMigration(sender=tester.k9)
+
+        with self.assertRaises(TransactionFailed):
+            migration.finalizeMigration(sender=tester.k9)
+
+    def test_multiple_migrations(self):
+        s_addr, _ = self.deploy_contract(tester.a9, 1, 1)
+        n_accounts = len(tester.accounts) - 1
+
+        values = [0] * n_accounts
+
+        # funding
+        self.state.mine(1)
+
+        # testers purchase tokens
+        for i in range(0, n_accounts):
+            value = random.randrange(10, 1000) * denoms.ether
+            self.state.send(tester.keys[i], s_addr, value)
+            values[i] += value
+
+        total = sum(values)
+
+        m_addr, _ = self.deploy_migration_contract(s_addr)
+        t_addr, _ = self.deploy_target_contract(m_addr)
+
+        source = self.c
+        migration = self.m
+        target = self.t
+
+        creation_rate = source.tokenCreationRate()
+
+        assert source.totalSupply() == total * creation_rate
+
+        source.setMigrationAgent(m_addr, sender=tester.k9)
+        migration.setTargetToken(t_addr, sender=tester.k9)
+
+        assert source.totalSupply() == total * creation_rate
+        assert target.totalSupply() == 0
+
+        # post funding
+        self.state.mine(1)
+
+        # testers migrate tokens in parts
+        for j in range(0, 10):
+            for i in range(0, n_accounts):
+                value = creation_rate * values[i] / 10
+                source.migrate(value, sender=tester.keys[i])
+                assert target.balanceOf(tester.accounts[i]) == value * (j + 1)
+
+        migration.finalizeMigration(sender=tester.k9)
+
+        assert source.totalSupply() == 0
+        assert target.totalSupply() == total * creation_rate
 
     def test_number_of_tokens_left(self):
         addr, _ = self.deploy_contract(tester.a0, 13, 42)
