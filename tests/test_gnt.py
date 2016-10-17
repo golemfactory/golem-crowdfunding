@@ -1,6 +1,5 @@
 import unittest
 from ethereum import abi, tester
-from ethereum.exceptions import InvalidTransaction
 from ethereum.tester import TransactionFailed
 from ethereum.utils import denoms
 from rlp.utils import decode_hex
@@ -14,6 +13,7 @@ tester.serpent = True  # tester tries to load serpent module, prevent that.
 # to work on and update the Token.
 GNT_INIT = decode_hex(open('tests/GolemNetworkToken.bin', 'r').read().rstrip())
 GNT_ABI = open('tests/GolemNetworkToken.abi', 'r').read()
+
 
 class GNTCrowdfundingTest(unittest.TestCase):
 
@@ -77,7 +77,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
     def test_transfer_enabled_after_end_block(self):
         founder = tester.accounts[4]
         self.deploy_contract(founder, 3, 13)
-        assert self.state.block.number == 0 
+        assert self.state.block.number == 0
         assert not self.c.transferEnabled()
         for _ in range(13):
             self.state.mine()
@@ -112,24 +112,30 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.mine(2)
         assert self.c.totalSupply() == 0
         self.state.send(tester.keys[3], addr, 6611)
-        assert self.c.totalSupply() == 6611
+        assert self.c.totalSupply() == 6611000
         self.state.send(tester.keys[0], addr, 389)
-        assert self.c.totalSupply() == 7000
+        assert self.c.totalSupply() == 7000000
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.keys[0], addr, 0)
-        assert self.c.totalSupply() == 7000
+        assert self.c.totalSupply() == 7000000
         self.state.send(tester.keys[7], addr, 1)
-        assert self.c.totalSupply() == 7001
+        assert self.c.totalSupply() == 7001000
         self.state.mine(3)
-        assert self.c.totalSupply() == 7001
+        assert self.c.totalSupply() == 7001000
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.keys[7], addr, 10)
-        assert self.c.totalSupply() == 7001
+        supplyBeforeEndowment = self.c.totalSupply()
+        assert supplyBeforeEndowment == 7001000
         self.c.finalizeFunding(sender=tester.keys[7])
-        assert self.c.totalSupply() == 8537
+        supplyAfterEndowment = self.c.totalSupply()
+        endowmentPercent = (supplyAfterEndowment - supplyBeforeEndowment) \
+            / float(supplyAfterEndowment)
+        epsilon = 0.0001
+        assert endowmentPercent < 0.18 + epsilon
+        assert endowmentPercent > 0.18 - epsilon
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.keys[1], addr, 10)
-        assert self.c.totalSupply() == 8537
+        assert self.c.totalSupply() == supplyAfterEndowment
 
     def test_payable_period(self):
         c_addr, _ = self.deploy_contract(tester.a0, 2, 2)
@@ -163,16 +169,18 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         # changing balance
         self.state.send(tester.k1, c_addr, value)
-        assert self.c.numberOfTokensLeft() == tokens_max - value
-        assert self.c.totalSupply() == value
+        numTokensCreated = value * self.c.tokenCreationRate()
+        assert self.c.numberOfTokensLeft() == tokens_max - numTokensCreated
+        assert self.c.totalSupply() == numTokensCreated
 
         self.state.send(tester.k2, c_addr, value)
-        assert self.c.numberOfTokensLeft() == tokens_max - 2 * value
-        assert self.c.totalSupply() == 2 * value
+        assert self.c.numberOfTokensLeft() == tokens_max - 2 * numTokensCreated
+        assert self.c.totalSupply() == 2 * numTokensCreated
 
-        self.state.send(tester.k1, c_addr, tokens_max - 3 * value)
-        assert self.c.numberOfTokensLeft() == value
-        assert self.c.totalSupply() == tokens_max - value
+        value_max = tokens_max / self.c.tokenCreationRate()
+        self.state.send(tester.k1, c_addr, value_max - 3 * value)
+        assert self.c.numberOfTokensLeft() == numTokensCreated
+        assert self.c.totalSupply() == tokens_max - numTokensCreated
 
         # more than available tokens
         with self.assertRaises(TransactionFailed):
@@ -211,28 +219,31 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         value_1 = 10 * denoms.ether
         value_2 = 3 * denoms.ether
+        rate = self.c.tokenCreationRate()
+        tokens_1 = value_1 * rate
+        tokens_2 = value_2 * rate
 
         self.state.mine(1)
 
         # During funding
         self.state.send(tester.k1, c_addr, value_1)
 
-        assert self.balance_of(1) == value_1
-        assert self.c.approve(tester.a2, value_2,
+        assert self.balance_of(1) == tokens_1
+        assert self.c.approve(tester.a2, tokens_2,
                               sender=tester.k1)
 
-        assert self.c.allowance(tester.a1, tester.a2) == value_2
-        assert not self.c.transferFrom(tester.a1, tester.a2, value_2,
+        assert self.c.allowance(tester.a1, tester.a2) == tokens_2
+        assert not self.c.transferFrom(tester.a1, tester.a2, tokens_2,
                                        sender=tester.k2)
         # Funding ended
         self.state.mine(1)
 
-        assert self.c.transferFrom(tester.a1, tester.a2, value_2,
+        assert self.c.transferFrom(tester.a1, tester.a2, tokens_2,
                                    sender=tester.k2)
         assert self.c.allowance(tester.a1, tester.a2) == 0
 
-        assert self.balance_of(1) == value_1 - value_2
-        assert self.balance_of(2) == value_2
+        assert self.balance_of(1) == tokens_1 - tokens_2
+        assert self.balance_of(2) == tokens_2
 
     # Check if the transfer() is locked during the funding period.
     def test_transfer_locked(self):
@@ -243,18 +254,31 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         self.state.mine(1)
         assert self.c.fundingOngoing()
-        value = 1 * denoms.ether
+        value = 113 * denoms.szabo
+        tokens = value * self.c.tokenCreationRate()
         # Create tokens for 1 ether.
         self.state.send(tester.k1, addr, value)
-        assert self.balance_of(1) == value
+        assert self.balance_of(1) == tokens
 
         # At this point a1 has GNT but cannot frasfer them.
         assert not self.c.transferEnabled()
-        assert self.transfer(tester.k1, tester.a2, value) is False
+        assert self.transfer(tester.k1, tester.a2, tokens) is False
 
         # Funding has ended.
         self.state.mine(1)
         assert self.c.transferEnabled()
-        assert self.transfer(tester.k1, tester.a2, value) is True
+        assert self.transfer(tester.k1, tester.a2, tokens) is True
         assert self.balance_of(1) == 0
-        assert self.balance_of(2) == value
+        assert self.balance_of(2) == tokens
+
+    def test_number_of_tokens_left(self):
+        addr, _ = self.deploy_contract(tester.a0, 13, 42)
+        rate = self.c.tokenCreationRate()
+
+        self.state.mine(13)
+        tokens_max = self.c.numberOfTokensLeft()
+        self.state.send(tester.k1, addr, tokens_max / rate / 2)
+        assert self.c.numberOfTokensLeft() > 0
+
+        self.state.mine(42 - 13 + 1)
+        assert self.c.numberOfTokensLeft() == 0
