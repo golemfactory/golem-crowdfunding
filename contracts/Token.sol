@@ -103,6 +103,7 @@ contract GolemNetworkToken {
     function setMigrationAgent(address _agent) external {
         if (msg.sender != crowdfundingAgent) throw;
         if (migrationEnabled()) throw;  // Do not allow changing the importer.
+
         migrationAgent = _agent;
     }
 
@@ -148,6 +149,8 @@ contract GolemNetworkToken {
 
     function changeGolemAgent(address _newCrowdfundingAgent) external {
         // TODO: Sort function by importance.
+        if (!fundingFinalized()) throw;
+        
         if (msg.sender == crowdfundingAgent)
             crowdfundingAgent = _newCrowdfundingAgent;
     }
@@ -164,7 +167,7 @@ contract GolemNetworkToken {
         // UI should known that and propose available number of tokens,
         // but still it is a race condition.
         // Alternatively, we can generate up the cap and return the left ether
-        // to the sender. But calling unknown addresses is a sequrity risk.
+        // to the sender. But calling unknown addresses is a security risk.
         if (numTokens > numberOfTokensLeft()) throw;
 
         // Assign new tokens to the sender
