@@ -12,7 +12,7 @@ contract GolemNetworkToken {
     // TODO: SET these PARAMS before THE CROWDFUNDING!
     uint256 constant percentTokensForCrowdfundingAgent = 12;
     uint256 constant percentTokensForDevelopers = 6;
-    uint256 constant tokenCreationRate = 1000;
+    uint256 public constant tokenCreationRate = 1000;
     
     // The funding cap in wei.
     uint256 constant tokenCreationCap = 847457627118644067796611 * tokenCreationRate;
