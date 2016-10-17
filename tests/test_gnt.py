@@ -195,56 +195,6 @@ class GNTCrowdfundingTest(unittest.TestCase):
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.k2, c_addr, value)
 
-    def test_transfer_from_allowances(self):
-        c_addr, _ = self.deploy_contract(tester.a0, 1, 1)
-
-        value_1 = 10 * denoms.ether
-        value_2 = 3 * denoms.ether
-
-        self.state.mine(1)
-        self.state.send(tester.k1, c_addr, value_1)
-
-        # Funds without allowance [1 -> 2]
-        assert not self.c.transferFrom(tester.a1, tester.a2, value_2,
-                                       sender=tester.k2)
-
-        # Allowance without funds [4 -> 2]
-        assert self.c.allowance(tester.a4, tester.a2) == 0
-        assert self.c.approve(tester.a2, sender=tester.k4)
-        assert not self.c.transferFrom(tester.a4, tester.a2, value_2,
-                                       sender=tester.k2)
-
-    def test_transfer_from_period(self):
-        c_addr, _ = self.deploy_contract(tester.a0, 1, 1)
-
-        value_1 = 10 * denoms.ether
-        value_2 = 3 * denoms.ether
-        rate = self.c.tokenCreationRate()
-        tokens_1 = value_1 * rate
-        tokens_2 = value_2 * rate
-
-        self.state.mine(1)
-
-        # During funding
-        self.state.send(tester.k1, c_addr, value_1)
-
-        assert self.balance_of(1) == tokens_1
-        assert self.c.approve(tester.a2, tokens_2,
-                              sender=tester.k1)
-
-        assert self.c.allowance(tester.a1, tester.a2) == tokens_2
-        assert not self.c.transferFrom(tester.a1, tester.a2, tokens_2,
-                                       sender=tester.k2)
-        # Funding ended
-        self.state.mine(1)
-
-        assert self.c.transferFrom(tester.a1, tester.a2, tokens_2,
-                                   sender=tester.k2)
-        assert self.c.allowance(tester.a1, tester.a2) == 0
-
-        assert self.balance_of(1) == tokens_1 - tokens_2
-        assert self.balance_of(2) == tokens_2
-
     # Check if the transfer() is locked during the funding period.
     def test_transfer_locked(self):
         addr, _ = self.deploy_contract(tester.a0, 1, 1)
