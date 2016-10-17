@@ -9,7 +9,7 @@ contract GolemNetworkToken {
     string public constant symbol = "GNT";
     uint8 public constant decimals = 18;  // 18 decimal places, the same as ETH.
 
-    // TODO: SET these PARAMS before THE CROWDSALE!
+    // TODO: SET these PARAMS before THE CROWDFUNDING!
     uint256 constant percentTokensForCrowdfundingAgent = 12;
     uint256 constant percentTokensForDevelopers = 6;
     uint256 constant tokenCreationRate = 1000;
