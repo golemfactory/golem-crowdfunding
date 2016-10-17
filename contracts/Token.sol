@@ -210,7 +210,7 @@ contract GolemNetworkToken {
         balances[dev5] += dev5Tokens;
 
         // 4. Update GNT state (number of tokens)
-        totalTokens += additionalTokens;
+        totalTokens += numAdditionalTokens;
 
         // 5. Set finalize flag to true (fundingEndBlock == 0)
         // Cleanup. Remove all data not needed any more.
