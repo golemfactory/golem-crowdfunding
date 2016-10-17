@@ -428,3 +428,14 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.state.send(tester.k4, addr, random_value, evmdata=random_data)
         assert self.c.totalSupply() == random_value * self.c.tokenCreationRate()
         assert self.contract_balance() == random_value
+
+    def test_send_value_through_other_function(self):
+        addr, _ = self.deploy_contract(tester.a0, 17, 19)
+
+        with self.assertRaises(TransactionFailed):
+            self.c.totalSupply(value=13, sender=tester.k0)
+        assert self.contract_balance() == 0
+
+        with self.assertRaises(TransactionFailed):
+            self.c.tokenCreationRate(value=13000000, sender=tester.k0)
+        assert self.contract_balance() == 0
