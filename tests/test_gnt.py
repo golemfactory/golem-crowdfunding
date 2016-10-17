@@ -1,5 +1,7 @@
 import random
 import unittest
+from random import randint
+from os import urandom
 from ethereum import abi, tester
 from ethereum.tester import TransactionFailed
 from ethereum.utils import denoms
@@ -369,3 +371,71 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         self.state.mine(42 - 13 + 1)
         assert self.c.numberOfTokensLeft() == 0
+
+    def test_send_raw_data_no_value(self):
+        random_data = urandom(4)
+        print("RANDOM DATA: {}".format(random_data.encode('hex')))
+        addr, _ = self.deploy_contract(tester.a9, 7, 9)
+
+        assert self.c.totalSupply() == 0
+        assert self.contract_balance() == 0
+
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.k3, addr, value=0, evmdata=random_data)
+        assert self.c.totalSupply() == 0
+        assert self.contract_balance() == 0
+
+        self.state.mine(7)
+        assert self.c.fundingOngoing()
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.k3, addr, value=0, evmdata=random_data)
+        assert self.c.totalSupply() == 0
+        assert self.contract_balance() == 0
+
+        self.state.mine(3)
+        assert not self.c.fundingOngoing()
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.k3, addr, value=0, evmdata=random_data)
+        assert self.c.totalSupply() == 0
+        assert self.contract_balance() == 0
+
+    def test_send_raw_data_and_value(self):
+        random_data = urandom(4)
+        print("RANDOM DATA: {}".format(random_data.encode('hex')))
+        addr, _ = self.deploy_contract(tester.a9, 7, 9)
+
+        max_value = self.c.numberOfTokensLeft() / self.c.tokenCreationRate()
+        random_value = randint(0, max_value)
+        print("RANDOM VALUE: {}".format(random_value))
+
+        assert self.c.totalSupply() == 0
+        assert self.contract_balance() == 0
+
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.k3, addr, random_value, evmdata=random_data)
+        assert self.c.totalSupply() == 0
+        assert self.contract_balance() == 0
+
+        self.state.mine(7)
+        assert self.c.fundingOngoing()
+        self.state.send(tester.k3, addr, random_value, evmdata=random_data)
+        assert self.c.totalSupply() == random_value * self.c.tokenCreationRate()
+        assert self.contract_balance() == random_value
+
+        self.state.mine(3)
+        assert not self.c.fundingOngoing()
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.k4, addr, random_value, evmdata=random_data)
+        assert self.c.totalSupply() == random_value * self.c.tokenCreationRate()
+        assert self.contract_balance() == random_value
+
+    def test_send_value_through_other_function(self):
+        addr, _ = self.deploy_contract(tester.a0, 17, 19)
+
+        with self.assertRaises(TransactionFailed):
+            self.c.totalSupply(value=13, sender=tester.k0)
+        assert self.contract_balance() == 0
+
+        with self.assertRaises(TransactionFailed):
+            self.c.tokenCreationRate(value=13000000, sender=tester.k0)
+        assert self.contract_balance() == 0
