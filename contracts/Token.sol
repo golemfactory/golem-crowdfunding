@@ -15,7 +15,7 @@ contract GolemNetworkToken {
     uint256 constant tokenCreationRate = 1000;
     
     // The funding cap in wei.
-    uint256 constant fundingMax = 847457627118644067796611 * tokenCreationRate;
+    uint256 constant tokenCreationCap = 847457627118644067796611 * tokenCreationRate;
 
     uint256 fundingStartBlock;
     uint256 fundingEndBlock;
@@ -139,8 +139,7 @@ contract GolemNetworkToken {
     function numberOfTokensLeft() constant returns (uint256) {
         if (fundingHasEnded())
             return 0;
-
-        return fundingMax - totalTokens;
+        return tokenCreationCap - totalTokens;
     }
     
     function changeGolemAgent(address _newCrowdfundingAgent) external {
