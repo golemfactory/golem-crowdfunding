@@ -43,7 +43,7 @@ contract GolemNetworkToken {
     uint256 public dev4Percent;
 
     address public dev5;
-    uint256 public dev5Percent;
+    // uint256 public dev5Percent;  can be calculated as: 100 - dev0Percent - dev1Percent - dev2Percent - dev3Percent - dev4Percent
     
     uint256 totalTokens;
     mapping (address => uint256) balances;
