@@ -1,5 +1,8 @@
+import random
 import unittest
 from ethereum import abi, tester
+from ethereum.tester import TransactionFailed
+from ethereum.utils import denoms
 from rlp.utils import decode_hex
 
 tester.serpent = True  # tester tries to load serpent module, prevent that.
@@ -9,8 +12,15 @@ tester.serpent = True  # tester tries to load serpent module, prevent that.
 # You can use Solidity Browser
 # https://ethereum.github.io/browser-solidity/#version=soljson-v0.4.2+commit.af6afb04.js&optimize=true
 # to work on and update the Token.
-GNT_INIT = decode_hex('60606040526040516060806109ed83395060c06040525160805160a05160028054600160a060020a03191684179055600082905560018190555050506109a4806100496000396000f3606060405236156101115760e060020a600035046306fdde038114610135578063095ea7b31461017457806315f19f5c146101ee57806318160ddd146101fb57806323b872dd1461020b57806325e4c7bf1461022c57806327ea06b814610239578063313ce5671461024657806335b944bf14610253578063454b0608146102605780634cd412d5146102845780634d853ee51461029157806370a08231146102a857806375e2ff65146102dd5780638328dbcd1461030357806393c32e061461031a57806395a0f5eb1461035e57806395d89b411461036c578063a19ed39d146103ab578063a9059cbb146103c4578063c87877af146103dc578063dd62ed3e146103ff578063eac35fed14610438575b61044560006104a65b60006105985b6001546000904311156105b1575060016104d5565b34610002576104e460408051808201909152601381527f476f6c656d204e6574776f726b20546f6b656e00000000000000000000000000602082015281565b346100025761055260043560243533600160a060020a03908116600081815260056020908152604080832094871680845294825280832086905580518681529051929493927f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925929181900390910190a35060015b92915050565b3461000257610552610120565b34610002576102cb6003546104d5565b346100025761055260043560243560443560006105d15b60006107f7610120565b34610002576105526103b9565b34610002576102cb6104c5565b3461000257610566601881565b346100025761055261026f565b34610002576104456004356106c35b600654600160a060020a0316600014156104d5565b3461000257610552610222565b346100025761057c600254600160a060020a031681565b346100025760048035600160a060020a0316600090815260209190915260409020545b60408051918252519081900360200190f35b346100025761044560043560025433600160a060020a039081169116146107fe57610002565b346100025761057c600654600160a060020a031681565b346100025761044560043560025433600160a060020a03908116911614156104a3576002805473ffffffffffffffffffffffffffffffffffffffff19168217905550565b34610002576102cb60075481565b34610002576104e460408051808201909152600381527f474e540000000000000000000000000000000000000000000000000000000000602082015281565b346100025761044560006108325b6001546000146104d5565b346100025761055260043560243560006108ac610222565b346100025761044560025433600160a060020a0390811691161461095a57610002565b34610002576102cb600435602435600160a060020a038083166000908152600560209081526040808320938516835292905220546101e8565b346100025761055261011a565b005b33600160a060020a031660008181526004602090815260408083208054860190556003805486019055805185815290517fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef929181900390910190a35b50565b15156104b157610002565b503460008114156104c157610002565b6104d85b60035469b374c5201176f0938683035b90565b81111561044757610002565b60405180806020018281038252838181518152602001915080519060200190808383829060006004602084601f0104600302600f01f150905090810190601f1680156105445780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b604080519115158252519081900360200190f35b6040805160ff9092168252519081900360200190f35b60408051600160a060020a039092168252519081900360200190f35b156105a5575060006104d5565b506000544310156104d5565b5060035469b374c5201176f0938683146104d5565b5060005b9392505050565b80156105f65750600160a060020a038416600090815260046020526040902054829010155b80156106295750600160a060020a0384811660009081526005602090815260408083203390941683529290522054829010155b80156106355750600082115b156105c657600160a060020a03838116600081815260046020908152604080832080548801905588851680845281842080548990039055600583528184203390961684529482529182902080548790039055815186815291519293927fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef9281900390910190a35060016105ca565b15156106ce57610002565b6106d6610222565b15156106e157610002565b33600160a060020a03166000908152600460205260409020548190101561070757610002565b806000141561071557610002565b33600160a060020a03908116600081815260046020819052604080832080548790039055600380548790039055600780548701905580516006547f7a3130e3000000000000000000000000000000000000000000000000000000008252928101949094526024840186905251931692637a3130e392604480820193929182900301818387803b156100025760325a03f115610002575050600654604080518481529051600160a060020a03928316935033909216917f18df02dcc52b9c494f391df09661519c0069bd8540141946280399408205ca1a9181900360200190a350565b90506104d5565b61080661026f565b1561081057610002565b6006805473ffffffffffffffffffffffffffffffffffffffff19168217905550565b1561083c57610002565b60025433600160a060020a0390811691161461085757610002565b61085f610120565b151561086a57610002565b600354605290601202600254600160a060020a031660009081526004602052604081208054939092049283019091556003805483019055808055600155905050565b80156108d1575033600160a060020a0316600090815260046020526040902054829010155b80156108dd5750600082115b156109525733600160a060020a03908116600081815260046020908152604080832080548890039055938716808352918490208054870190558351868152935191937fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef929081900390910190a35060016101e8565b5060006101e8565b610962610120565b151561096d57610002565b600254604051600160a060020a039182169130163180156108fc02916000818181858888f1935050505015156109a257610002565b56')  # noqa
-GNT_ABI = '[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"success","type":"bool"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"fundingHasEnded","outputs":[{"name":"","type":"bool"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transferFrom","outputs":[{"name":"success","type":"bool"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"fundingFinalized","outputs":[{"name":"","type":"bool"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"numberOfTokensLeft","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"migrationEnabled","outputs":[{"name":"","type":"bool"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_value","type":"uint256"}],"name":"migrate","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"transferEnabled","outputs":[{"name":"","type":"bool"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"founder","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_agent","type":"address"}],"name":"setMigrationAgent","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"migrationAgent","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_newFounder","type":"address"}],"name":"changeFounder","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"totalMigrated","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"type":"function"},{"constant":false,"inputs":[],"name":"finalizeFunding","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"success","type":"bool"}],"payable":false,"type":"function"},{"constant":false,"inputs":[],"name":"transferEtherToFounder","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_spender","type":"address"}],"name":"allowance","outputs":[{"name":"remaining","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"fundingOngoing","outputs":[{"name":"","type":"bool"}],"payable":false,"type":"function"},{"inputs":[{"name":"_founder","type":"address"},{"name":"_fundingStartBlock","type":"uint256"},{"name":"_fundingEndBlock","type":"uint256"}],"type":"constructor"},{"payable":true,"type":"fallback"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_from","type":"address"},{"indexed":true,"name":"_to","type":"address"},{"indexed":false,"name":"_value","type":"uint256"}],"name":"Transfer","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_owner","type":"address"},{"indexed":true,"name":"_spender","type":"address"},{"indexed":false,"name":"_value","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_from","type":"address"},{"indexed":true,"name":"_to","type":"address"},{"indexed":false,"name":"_value","type":"uint256"}],"name":"Migrate","type":"event"}]'  # noqa
+
+GNT_INIT = decode_hex(open('tests/GolemNetworkToken.bin', 'r').read().rstrip())
+GNT_ABI = open('tests/GolemNetworkToken.abi', 'r').read()
+
+MIGRATION_INIT = decode_hex(open('tests/MigrationAgent.bin', 'r').read().rstrip())
+MIGRATION_ABI = open('tests/MigrationAgent.abi', 'r').read()
+
+TARGET_INIT = decode_hex(open('tests/GNTTargetToken.bin', 'r').read().rstrip())
+TARGET_ABI = open('tests/GNTTargetToken.abi', 'r').read()
 
 
 class GNTCrowdfundingTest(unittest.TestCase):
@@ -49,11 +59,32 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.c = tester.ABIContract(self.state, GNT_ABI, addr)
         return addr, owner.gas()
 
+    def deploy_migration_contract(self, source_contract, creator_idx=9):
+        owner = self.monitor(creator_idx)
+        t = abi.ContractTranslator(MIGRATION_ABI)
+        args = t.encode_constructor_arguments([source_contract])
+        addr = self.state.evm(MIGRATION_INIT + args,
+                              sender=owner.key)
+        self.m = tester.ABIContract(self.state, MIGRATION_ABI, addr)
+        return addr, owner.gas()
+
+    def deploy_target_contract(self, migration_contract, creator_idx=9):
+        owner = self.monitor(creator_idx)
+        t = abi.ContractTranslator(TARGET_ABI)
+        args = t.encode_constructor_arguments([migration_contract])
+        addr = self.state.evm(TARGET_INIT + args,
+                              sender=owner.key)
+        self.t = tester.ABIContract(self.state, TARGET_ABI, addr)
+        return addr, owner.gas()
+
     def contract_balance(self):
         return self.state.block.get_balance(self.c.address)
 
     def balance_of(self, addr_idx):
         return self.c.balanceOf(tester.accounts[addr_idx])
+
+    def transfer(self, sender, to, value):
+        return self.c.transfer(to, value, sender=sender)
 
     def test_deployment(self):
         founder = tester.accounts[2]
@@ -65,6 +96,276 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert not self.c.fundingOngoing()
 
     def test_initial_balance(self):
-        founder = tester.accounts[3]
+        founder = tester.accounts[8]
         self.deploy_contract(founder, 5, 105)
         assert self.balance_of(8) == 0
+
+    def test_transfer_enabled_after_end_block(self):
+        founder = tester.accounts[4]
+        self.deploy_contract(founder, 3, 13)
+        assert self.state.block.number == 0
+        assert not self.c.transferEnabled()
+        for _ in range(13):
+            self.state.mine()
+            assert not self.c.transferEnabled()
+        assert self.state.block.number == 13
+        for _ in range(259):
+            self.state.mine()
+            assert self.c.transferEnabled()
+
+    def test_transfer_enabled_after_max_fund_reached(self):
+        founder = tester.accounts[2]
+        addr, _ = self.deploy_contract(founder, 3, 7)
+        assert not self.c.transferEnabled()
+        for _ in range(3):
+            self.state.mine()
+            assert not self.c.transferEnabled()
+        self.state.send(tester.keys[0], addr, 11)
+        assert not self.c.transferEnabled()
+        self.state.send(tester.keys[1], addr, 847457627118644067796600)
+        assert self.c.transferEnabled()
+        for _ in range(8):
+            self.state.mine()
+            assert self.c.transferEnabled()
+
+    def test_total_supply(self):
+        founder = tester.accounts[7]
+        addr, _ = self.deploy_contract(founder, 2, 4)
+        assert self.c.totalSupply() == 0
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.keys[3], addr, 6611)
+        assert self.c.totalSupply() == 0
+        self.state.mine(2)
+        assert self.c.totalSupply() == 0
+        self.state.send(tester.keys[3], addr, 6611)
+        assert self.c.totalSupply() == 6611000
+        self.state.send(tester.keys[0], addr, 389)
+        assert self.c.totalSupply() == 7000000
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.keys[0], addr, 0)
+        assert self.c.totalSupply() == 7000000
+        self.state.send(tester.keys[7], addr, 1)
+        assert self.c.totalSupply() == 7001000
+        self.state.mine(3)
+        assert self.c.totalSupply() == 7001000
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.keys[7], addr, 10)
+        supplyBeforeEndowment = self.c.totalSupply()
+        assert supplyBeforeEndowment == 7001000
+        self.c.finalizeFunding(sender=tester.keys[7])
+        supplyAfterEndowment = self.c.totalSupply()
+        endowmentPercent = (supplyAfterEndowment - supplyBeforeEndowment) \
+            / float(supplyAfterEndowment)
+        epsilon = 0.0001
+        assert endowmentPercent < 0.18 + epsilon
+        assert endowmentPercent > 0.18 - epsilon
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.keys[1], addr, 10)
+        assert self.c.totalSupply() == supplyAfterEndowment
+
+    def test_payable_period(self):
+        c_addr, _ = self.deploy_contract(tester.a0, 2, 2)
+        value = 3 * denoms.ether
+
+        # before funding
+        self.state.mine(1)
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.k1, c_addr, value)
+
+        # during funding
+        self.state.mine(1)
+        self.state.send(tester.k1, c_addr, value)
+
+        # after funding
+        self.state.mine(1)
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.k1, c_addr, value)
+
+    def test_payable_amounts(self):
+        c_addr, _ = self.deploy_contract(tester.a0, 1, 1)
+        value = 3 * denoms.ether
+
+        self.state.mine(1)
+
+        tokens_max = self.c.numberOfTokensLeft()
+
+        # invalid value
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.k1, c_addr, 0)
+
+        # changing balance
+        self.state.send(tester.k1, c_addr, value)
+        numTokensCreated = value * self.c.tokenCreationRate()
+        assert self.c.numberOfTokensLeft() == tokens_max - numTokensCreated
+        assert self.c.totalSupply() == numTokensCreated
+
+        self.state.send(tester.k2, c_addr, value)
+        assert self.c.numberOfTokensLeft() == tokens_max - 2 * numTokensCreated
+        assert self.c.totalSupply() == 2 * numTokensCreated
+
+        value_max = tokens_max / self.c.tokenCreationRate()
+        self.state.send(tester.k1, c_addr, value_max - 3 * value)
+        assert self.c.numberOfTokensLeft() == numTokensCreated
+        assert self.c.totalSupply() == tokens_max - numTokensCreated
+
+        # more than available tokens
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.k2, c_addr, 2 * value)
+
+        # exact amount of available tokens
+        self.state.send(tester.k1, c_addr, value)
+        assert self.c.numberOfTokensLeft() == 0
+        assert self.c.totalSupply() == tokens_max
+
+        # no tokens available
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.k2, c_addr, value)
+
+    # Check if the transfer() is locked during the funding period.
+    def test_transfer_locked(self):
+        addr, _ = self.deploy_contract(tester.a0, 1, 1)
+
+        assert not self.c.fundingOngoing()
+        assert not self.c.transferEnabled()
+
+        self.state.mine(1)
+        assert self.c.fundingOngoing()
+        value = 113 * denoms.szabo
+        tokens = value * self.c.tokenCreationRate()
+        # Create tokens for 1 ether.
+        self.state.send(tester.k1, addr, value)
+        assert self.balance_of(1) == tokens
+
+        # At this point a1 has GNT but cannot frasfer them.
+        assert not self.c.transferEnabled()
+        assert self.transfer(tester.k1, tester.a2, tokens) is False
+
+        # Funding has ended.
+        self.state.mine(1)
+        assert self.c.transferEnabled()
+        assert self.transfer(tester.k1, tester.a2, tokens) is True
+        assert self.balance_of(1) == 0
+        assert self.balance_of(2) == tokens
+
+    def test_migration(self):
+        s_addr, _ = self.deploy_contract(tester.a9, 1, 1)
+
+        tokens = 3 * denoms.ether
+
+        # funding
+        self.state.mine(1)
+        self.state.send(tester.k1, s_addr, tokens)
+
+        # migration and target token contracts
+        # funding _should_ already be over (target amount of GNT)
+        m_addr, _ = self.deploy_migration_contract(s_addr)
+        t_addr, _ = self.deploy_target_contract(m_addr)
+
+        source = self.c
+        migration = self.m
+        target = self.t
+
+        creation_rate = source.tokenCreationRate()
+        value = tokens * creation_rate
+
+        assert not source.migrationEnabled()
+
+        source.setMigrationAgent(m_addr, sender=tester.k9)
+        migration.setTargetToken(t_addr, sender=tester.k9)
+
+        assert source.migrationEnabled()
+        assert source.balanceOf(tester.a1) == value
+        assert target.balanceOf(tester.a1) == 0
+
+        with self.assertRaises(TransactionFailed):
+            source.migrate(value, sender=tester.k1)
+
+        # post funding
+        self.state.mine(1)
+
+        with self.assertRaises(TransactionFailed):
+            source.migrate(0, sender=tester.k1)
+
+        with self.assertRaises(TransactionFailed):
+            source.migrate(value + 1, sender=tester.k1)
+
+        with self.assertRaises(TransactionFailed):
+            source.migrate(value, sender=tester.k2)
+
+        source.migrate(value, sender=tester.k1)
+
+        with self.assertRaises(TransactionFailed):
+            source.migrate(value, sender=tester.k1)
+
+        assert source.balanceOf(tester.a1) == 0
+        assert target.balanceOf(tester.a1) == value
+
+        with self.assertRaises(TransactionFailed):
+            source.migrate(value, sender=tester.k1)
+
+        # finalize migration
+        migration.finalizeMigration(sender=tester.k9)
+
+        with self.assertRaises(TransactionFailed):
+            migration.finalizeMigration(sender=tester.k9)
+
+    def test_multiple_migrations(self):
+        s_addr, _ = self.deploy_contract(tester.a9, 1, 1)
+        n_accounts = len(tester.accounts) - 1
+
+        values = [0] * n_accounts
+
+        # funding
+        self.state.mine(1)
+
+        # testers purchase tokens
+        for i in range(0, n_accounts):
+            value = random.randrange(10, 1000) * denoms.ether
+            self.state.send(tester.keys[i], s_addr, value)
+            values[i] += value
+
+        total = sum(values)
+
+        m_addr, _ = self.deploy_migration_contract(s_addr)
+        t_addr, _ = self.deploy_target_contract(m_addr)
+
+        source = self.c
+        migration = self.m
+        target = self.t
+
+        creation_rate = source.tokenCreationRate()
+
+        assert source.totalSupply() == total * creation_rate
+
+        source.setMigrationAgent(m_addr, sender=tester.k9)
+        migration.setTargetToken(t_addr, sender=tester.k9)
+
+        assert source.totalSupply() == total * creation_rate
+        assert target.totalSupply() == 0
+
+        # post funding
+        self.state.mine(1)
+
+        # testers migrate tokens in parts
+        for j in range(0, 10):
+            for i in range(0, n_accounts):
+                value = creation_rate * values[i] / 10
+                source.migrate(value, sender=tester.keys[i])
+                assert target.balanceOf(tester.accounts[i]) == value * (j + 1)
+
+        migration.finalizeMigration(sender=tester.k9)
+
+        assert source.totalSupply() == 0
+        assert target.totalSupply() == total * creation_rate
+
+    def test_number_of_tokens_left(self):
+        addr, _ = self.deploy_contract(tester.a0, 13, 42)
+        rate = self.c.tokenCreationRate()
+
+        self.state.mine(13)
+        tokens_max = self.c.numberOfTokensLeft()
+        self.state.send(tester.k1, addr, tokens_max / rate / 2)
+        assert self.c.numberOfTokensLeft() > 0
+
+        self.state.mine(42 - 13 + 1)
+        assert self.c.numberOfTokensLeft() == 0
