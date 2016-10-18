@@ -64,7 +64,7 @@ contract GolemNetworkToken {
     // ERC20 Token Interface:
 
     function transfer(address _to, uint256 _value) returns (bool success) {
-        if (fundingFinalized() && balances[msg.sender] >= _value && _value > 0) {
+        if (transferEnabled() && balances[msg.sender] >= _value && _value > 0) {
             balances[msg.sender] -= _value;
             balances[_to] += _value;
             Transfer(msg.sender, _to, _value);
@@ -89,6 +89,7 @@ contract GolemNetworkToken {
 
     function migrate(uint256 _value) {
         if (!migrationEnabled()) throw;
+        if (!transferEnabled()) throw;
         if (balances[msg.sender] < _value) throw;
         if (_value == 0) throw;
 
@@ -103,14 +104,14 @@ contract GolemNetworkToken {
         if (msg.sender != golemFactory) throw;
         if (!fundingFinalized()) throw; // Only after the crowdfunding is finalized
         if (migrationEnabled()) throw;  // Do not allow changing the importer.
-        
+
         migrationAgent = _agent;
     }
 
     // Crowdfunding:
 
     // Helper function to check if the funding has ended. It also handles the
-    // case where 'fundingEnd' has been zeroed.
+    // case where 'fundingEndBlock' has been zeroed.
     function fundingHasEnded() constant returns (bool) {
         if (block.number > fundingEndBlock)
             return true;
@@ -135,6 +136,10 @@ contract GolemNetworkToken {
         return block.number >= fundingStartBlock;
     }
 
+    function transferEnabled() constant returns (bool) {
+        return fundingHasEnded();
+    }
+
     // Helper function to get number of tokens left during the funding.
     // This is also a public function to allow better Dapps integration.
     function numberOfTokensLeft() constant returns (uint256) {
@@ -144,9 +149,9 @@ contract GolemNetworkToken {
     }
 
     function changeGolemFactory(address _golemFactory) external {
-        // TODO: Sort function by importance.
-        if (!fundingFinalized()) throw; //meaning that ETH was successfully transferred
+        if (!fundingFinalized()) throw; // Only after the crowdfundin is finalized
 
+        // TODO: Sort function by importance.
         if (msg.sender == golemFactory)
             golemFactory = _golemFactory;
     }
