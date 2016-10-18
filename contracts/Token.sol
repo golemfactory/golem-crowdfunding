@@ -102,16 +102,16 @@ contract GolemNetworkToken {
 
     function setMigrationAgent(address _agent) external {
         if (msg.sender != golemFactory) throw;
-        if (!fundingFinalized()) throw; // Only after the crowdfundin is finalized
+        if (!fundingFinalized()) throw; // Only after the crowdfunding is finalized
         if (migrationEnabled()) throw;  // Do not allow changing the importer.
-        
+
         migrationAgent = _agent;
     }
 
     // Crowdfunding:
 
     // Helper function to check if the funding has ended. It also handles the
-    // case where 'fundingEnd' has been zeroed.
+    // case where 'fundingEndBlock' has been zeroed.
     function fundingHasEnded() constant returns (bool) {
         if (block.number > fundingEndBlock)
             return true;
