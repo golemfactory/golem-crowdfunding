@@ -149,6 +149,8 @@ contract GolemNetworkToken {
     }
 
     function changeGolemFactory(address _golemFactory) external {
+        if (!fundingFinalized()) throw; // Only after the crowdfundin is finalized
+
         // TODO: Sort function by importance.
         if (msg.sender == golemFactory)
             golemFactory = _golemFactory;

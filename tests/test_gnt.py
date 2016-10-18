@@ -95,7 +95,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert len(c) == 20
         assert g <= 850000
         assert self.contract_balance() == 0
-        assert decode_hex(self.c.crowdfundingAgent()) == founder
+        assert decode_hex(self.c.golemFactory()) == founder
         assert not self.c.fundingOngoing()
 
     def test_initial_balance(self):
@@ -273,6 +273,14 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         assert not source.migrationEnabled()
 
+        with self.assertRaises(TransactionFailed):
+            source.setMigrationAgent(m_addr, sender=tester.k9)
+
+        # post funding
+        self.state.mine(1)
+
+        self._finalize_funding(s_addr)
+
         source.setMigrationAgent(m_addr, sender=tester.k9)
         migration.setTargetToken(t_addr, sender=tester.k9)
 
@@ -282,9 +290,6 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         with self.assertRaises(TransactionFailed):
             source.migrate(value, sender=tester.k1)
-
-        # post funding
-        self.state.mine(1)
 
         with self.assertRaises(TransactionFailed):
             source.migrate(0, sender=tester.k1)
@@ -451,7 +456,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         sum_percent = ca_percent + devs_percent
         # <- private properties
 
-        ca = self.c.crowdfundingAgent()
+        ca = self.c.golemFactory()
         creation_rate = self.c.tokenCreationRate()
 
         # -- before funding
@@ -530,3 +535,33 @@ class GNTCrowdfundingTest(unittest.TestCase):
         ver_sum += ca_balance
         err = error(ver_sum)
         assert ver_sum - err <= self.c.totalSupply() - total_tokens <= ver_sum + err
+
+    # assums post funding period
+    def _finalize_funding(self, addr):
+        
+        # private properties ->
+        n_devs = 6
+        ca_percent = 12
+        devs_percent = 6
+        sum_percent = ca_percent + devs_percent
+        # <- private properties
+
+        ca = self.c.golemFactory()
+        creation_rate = self.c.tokenCreationRate()
+
+        n_testers = len(tester.accounts) - 1
+        eths = [(i + 1) * 100 * denoms.ether for i in xrange(n_testers)]
+        for i, e in enumerate(eths):
+            self.state.send(tester.keys[i], addr, e)
+            assert self.c.balanceOf(tester.accounts[i]) == creation_rate * e
+
+        with self.assertRaises(TransactionFailed):
+            self.c.finalizeFunding()
+
+        total_tokens = self.c.totalSupply()
+        assert total_tokens == sum(eths) * creation_rate
+
+        # finalize
+        self.c.finalizeFunding()
+        with self.assertRaises(TransactionFailed):
+            self.c.finalizeFunding()
