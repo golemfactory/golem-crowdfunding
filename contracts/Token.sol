@@ -9,16 +9,41 @@ contract GolemNetworkToken {
     string public constant symbol = "GNT";
     uint8 public constant decimals = 18;  // 18 decimal places, the same as ETH.
 
-    // TODO: Set these params before crowfunding!
-    uint256 constant percentTokensForFounder = 18;
+    // TODO: SET these PARAMS before THE CROWDFUNDING!
+    uint256 constant percentTokensForCrowdfundingAgent = 12;
+    uint256 constant percentTokensForDevelopers = 6;
     uint256 public constant tokenCreationRate = 1000;
-    // The token creation cap without endowment.
+
+    // The funding cap in wei.
     uint256 constant tokenCreationCap = 847457627118644067796611 * tokenCreationRate;
 
     uint256 fundingStartBlock;
     uint256 fundingEndBlock;
 
-    address public founder;
+    address public golemFactory;
+
+    // TODO: SET before THE CROWDFUNDING!
+    // Invariants:
+    // dev0Percent + dev1Percent + dev2Percent + dev3Percent + dev4Percent + dev5Percent = 100
+    // dev0Percent > 0 && dev1Percent > 0 && dev2Percent > 0 && dev3Percent > 0 && dev4Percent > 0 && dev5Percent > 0
+    // FIXME: array based approach can be used instead, provided that it is safe to use this Solidity feature
+    address public constant dev0 = 0xde00;
+    uint256 public constant dev0Percent = 10;
+
+    address public constant dev1 = 0xde01;
+    uint256 public constant dev1Percent = 10;
+
+    address public constant dev2 = 0xde02;
+    uint256 public constant dev2Percent = 15;
+
+    address public constant dev3 = 0xde03;
+    uint256 public constant dev3Percent = 20;
+
+    address public constant dev4 = 0xde04;
+    uint256 public constant dev4Percent = 20;
+
+    address public constant dev5 = 0xde05;
+    // uint256 public dev5Percent;  can be calculated as: 100 - dev0Percent - dev1Percent - dev2Percent - dev3Percent - dev4Percent
 
     uint256 totalTokens;
     mapping (address => uint256) balances;
@@ -29,9 +54,9 @@ contract GolemNetworkToken {
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
     event Migrate(address indexed _from, address indexed _to, uint256 _value);
 
-    function GolemNetworkToken(address _founder, uint256 _fundingStartBlock,
+    function GolemNetworkToken(address _golemFactory, uint256 _fundingStartBlock,
                                uint256 _fundingEndBlock) {
-        founder = _founder;
+        golemFactory = _golemFactory;
         fundingStartBlock = _fundingStartBlock;
         fundingEndBlock = _fundingEndBlock;
     }
@@ -76,15 +101,17 @@ contract GolemNetworkToken {
     }
 
     function setMigrationAgent(address _agent) external {
-        if (msg.sender != founder) throw;
+        if (msg.sender != golemFactory) throw;
+        if (!fundingFinalized()) throw; // Only after the crowdfunding is finalized
         if (migrationEnabled()) throw;  // Do not allow changing the importer.
+
         migrationAgent = _agent;
     }
 
     // Crowdfunding:
 
     // Helper function to check if the funding has ended. It also handles the
-    // case where `fundingEnd` has been zerod.
+    // case where 'fundingEndBlock' has been zeroed.
     function fundingHasEnded() constant returns (bool) {
         if (block.number > fundingEndBlock)
             return true;
@@ -117,15 +144,17 @@ contract GolemNetworkToken {
         return tokenCreationCap - totalTokens;
     }
 
-    function changeFounder(address _newFounder) external {
+    function changeGolemFactory(address _golemFactory) external {
+        if (!fundingFinalized()) throw; // Only after the crowdfundin is finalized
+
         // TODO: Sort function by importance.
-        if (msg.sender == founder)
-            founder = _newFounder;
+        if (msg.sender == golemFactory)
+            golemFactory = _golemFactory;
     }
 
-    // If in the funding period, generate tokens for incoming ethers.
+    // If during the funding period, generate tokens for incoming ethers and finalize funding in case, cap was reached.
     function() payable external {
-        // Only in funding period.
+        // Only during the funding period.
         if (!fundingOngoing()) throw;
 
         var numTokens = msg.value * tokenCreationRate;
@@ -138,37 +167,56 @@ contract GolemNetworkToken {
         // to the sender. But calling unknown addresses is a sequrity risk.
         if (numTokens > numberOfTokensLeft()) throw;
 
-        // Assigne new tokens to the sender
+        // Assign new tokens to the sender
         balances[msg.sender] += numTokens;
         totalTokens += numTokens;
         // Notify about the token generation with a transfer event from 0 address.
         Transfer(0, msg.sender, numTokens);
     }
 
-    // Allow the Founder to transfer ethers from the funding to its account.
-    // This can be done only after the funding has endned but multiple times
-    // in case someone accedentially deposits any ether in the Token contract.
-    function transferEtherToFounder() external {
-        // Only after the funding has ended.
-        if (msg.sender != founder) throw;
-        if (!fundingHasEnded()) throw;
-
-        if (!founder.send(this.balance)) throw;
-    }
-
-    // Finalize the funding period
+    // If cap was reached or crowdfunding has ended then:
+    // Transfer ETH to the golemFactory address
+    // Create GNT for the golemFactory (representing the company)
+    // Create GNT for the developers
+    // Update GNT state (number of tokens)
+    // Set finalize flag to true (fundingEndBlock == 0)
+    // FIXME: Any events to be added here?
     function finalizeFunding() external {
         if (fundingFinalized()) throw;
-        if (msg.sender != founder) throw;
         if (!fundingHasEnded()) throw;
 
-        // Generate additional tokens for the Founder.
-        var additionalTokens = totalTokens * percentTokensForFounder / (100 - percentTokensForFounder);
-        balances[founder] += additionalTokens;
-        totalTokens += additionalTokens;
+        // 1. Transfer ETH to the golemFactory address
+        if (!golemFactory.send(this.balance)) throw;
 
+        // 2. Create GNT for the golemFactory (representing the company)
+        var numAdditionalTokens = totalTokens * (percentTokensForCrowdfundingAgent + percentTokensForDevelopers) / (100 - percentTokensForCrowdfundingAgent - percentTokensForDevelopers);
+        var numTokensForGolemAgent = numAdditionalTokens * percentTokensForCrowdfundingAgent / (percentTokensForCrowdfundingAgent + percentTokensForDevelopers);
+
+        balances[golemFactory] += numTokensForGolemAgent;
+
+        // 3. Create GNT for the golemFactory (representing the company)
+        var numTokensForDevelpers  = numAdditionalTokens - numTokensForGolemAgent;
+
+        var dev0Tokens = dev0Percent * numTokensForDevelpers / 100;
+        var dev1Tokens = dev1Percent * numTokensForDevelpers / 100;
+        var dev2Tokens = dev2Percent * numTokensForDevelpers / 100;
+        var dev3Tokens = dev3Percent * numTokensForDevelpers / 100;
+        var dev4Tokens = dev4Percent * numTokensForDevelpers / 100;
+        var dev5Tokens = numTokensForDevelpers - dev0Tokens - dev1Tokens - dev2Tokens - dev3Tokens - dev4Tokens;
+
+        balances[dev0] += dev0Tokens;
+        balances[dev1] += dev1Tokens;
+        balances[dev2] += dev2Tokens;
+        balances[dev3] += dev3Tokens;
+        balances[dev4] += dev4Tokens;
+        balances[dev5] += dev5Tokens;
+
+        // 4. Update GNT state (number of tokens)
+        totalTokens += numAdditionalTokens;
+
+        // 5. Set finalize flag to true (fundingEndBlock == 0)
         // Cleanup. Remove all data not needed any more.
-        // Also zero the founder address to indicate that funding has been
+        // Also zero the golemFactory address to indicate that funding has been // FIXME: what about it?
         // finalized.
         fundingStartBlock = 0;
         fundingEndBlock = 0;

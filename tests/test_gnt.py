@@ -1,9 +1,10 @@
+import math
 import random
 import unittest
 from random import randint
 from os import urandom
 from ethereum import abi, tester
-from ethereum.tester import TransactionFailed
+from ethereum.tester import TransactionFailed, ContractCreationFailed
 from ethereum.utils import denoms
 from rlp.utils import decode_hex
 
@@ -92,9 +93,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
         founder = tester.accounts[2]
         c, g = self.deploy_contract(founder, 5, 105)
         assert len(c) == 20
-        assert g <= 850000
+        assert g <= 800000
         assert self.contract_balance() == 0
-        assert decode_hex(self.c.founder()) == founder
+        assert decode_hex(self.c.golemFactory()) == founder
         assert not self.c.fundingOngoing()
 
     def test_initial_balance(self):
@@ -250,27 +251,46 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.balance_of(2) == tokens
 
     def test_migration(self):
-        s_addr, _ = self.deploy_contract(tester.a9, 1, 1)
+        s_addr, _ = self.deploy_contract(tester.a9, 2, 2)
+        source = self.c
+        eths = 3 * denoms.ether
 
-        tokens = 3 * denoms.ether
+        # pre funding
+        self.state.mine(1)
+        with self.assertRaises(ContractCreationFailed):
+            _1, _2 = self.deploy_migration_contract(s_addr)
+
+        assert not source.migrationEnabled()
 
         # funding
         self.state.mine(1)
-        self.state.send(tester.k1, s_addr, tokens)
+        self.state.send(tester.k1, s_addr, eths)
+
+        with self.assertRaises(ContractCreationFailed):
+            _1, _2 = self.deploy_migration_contract(s_addr)
+
+        assert not source.migrationEnabled()
+
+        creation_rate = source.tokenCreationRate()
+        value = eths * creation_rate
+
+        # post funding
+        self.state.mine(1)
+
+        with self.assertRaises(ContractCreationFailed):
+            _1, _2 = self.deploy_migration_contract(s_addr)
+
+        assert not source.migrationEnabled()
+
+        self._finalize_funding(s_addr, expected_supply=value)
 
         # migration and target token contracts
         # funding _should_ already be over (target amount of GNT)
         m_addr, _ = self.deploy_migration_contract(s_addr)
         t_addr, _ = self.deploy_target_contract(m_addr)
 
-        source = self.c
         migration = self.m
         target = self.t
-
-        creation_rate = source.tokenCreationRate()
-        value = tokens * creation_rate
-
-        assert not source.migrationEnabled()
 
         source.setMigrationAgent(m_addr, sender=tester.k9)
         migration.setTargetToken(t_addr, sender=tester.k9)
@@ -278,12 +298,6 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert source.migrationEnabled()
         assert source.balanceOf(tester.a1) == value
         assert target.balanceOf(tester.a1) == 0
-
-        with self.assertRaises(TransactionFailed):
-            source.migrate(value, sender=tester.k1)
-
-        # post funding
-        self.state.mine(1)
 
         with self.assertRaises(TransactionFailed):
             source.migrate(0, sender=tester.k1)
@@ -327,26 +341,29 @@ class GNTCrowdfundingTest(unittest.TestCase):
             values[i] += value
 
         total = sum(values)
-
-        m_addr, _ = self.deploy_migration_contract(s_addr)
-        t_addr, _ = self.deploy_target_contract(m_addr)
-
         source = self.c
-        migration = self.m
-        target = self.t
-
         creation_rate = source.tokenCreationRate()
 
         assert source.totalSupply() == total * creation_rate
 
+        # post funding
+        self.state.mine(1)
+
+        self._finalize_funding(s_addr, expected_supply=total * creation_rate)
+        # additional tokens are generated for the golem agent and devs
+        supply_after_finalization = source.totalSupply()
+
+        m_addr, _ = self.deploy_migration_contract(s_addr)
+        t_addr, _ = self.deploy_target_contract(m_addr)
+
+        migration = self.m
+        target = self.t
+
         source.setMigrationAgent(m_addr, sender=tester.k9)
         migration.setTargetToken(t_addr, sender=tester.k9)
 
-        assert source.totalSupply() == total * creation_rate
+        assert supply_after_finalization > total * creation_rate
         assert target.totalSupply() == 0
-
-        # post funding
-        self.state.mine(1)
 
         # testers migrate tokens in parts
         for j in range(0, 10):
@@ -357,7 +374,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         migration.finalizeMigration(sender=tester.k9)
 
-        assert source.totalSupply() == 0
+        assert source.totalSupply() == supply_after_finalization - total * creation_rate
         assert target.totalSupply() == total * creation_rate
 
     def test_number_of_tokens_left(self):
@@ -439,3 +456,101 @@ class GNTCrowdfundingTest(unittest.TestCase):
         with self.assertRaises(TransactionFailed):
             self.c.tokenCreationRate(value=13000000, sender=tester.k0)
         assert self.contract_balance() == 0
+
+    def test_finalize_funding(self):
+        addr, _ = self.deploy_contract(tester.a9, 2, 2)
+
+        # private properties ->
+        n_devs = 6
+        ca_percent = 12
+        devs_percent = 6
+        sum_percent = ca_percent + devs_percent
+        # <- private properties
+
+        ca = self.c.golemFactory()
+        creation_rate = self.c.tokenCreationRate()
+
+        # -- before funding
+        self.state.mine(1)
+
+        with self.assertRaises(TransactionFailed):
+            self.c.finalizeFunding()
+
+        # -- during funding
+        self.state.mine(1)
+
+        n_testers = len(tester.accounts) - 1
+        eths = [(i + 1) * 100 * denoms.ether for i in xrange(n_testers)]
+        for i, e in enumerate(eths):
+            self.state.send(tester.keys[i], addr, e)
+            assert self.c.balanceOf(tester.accounts[i]) == creation_rate * e
+
+        with self.assertRaises(TransactionFailed):
+            self.c.finalizeFunding()
+
+        # -- post funding
+        self.state.mine(1)
+
+        total_tokens = self.c.totalSupply()
+        assert total_tokens == sum(eths) * creation_rate
+
+        # finalize
+        self.c.finalizeFunding()
+        with self.assertRaises(TransactionFailed):
+            self.c.finalizeFunding()
+
+        # verify values
+        dev_addrs = []
+        for i in xrange(n_devs):
+            method = getattr(self.c, 'dev{}'.format(i))
+            dev_addrs.append(method())
+
+        dev_percent = []
+        for i in xrange(n_devs - 1):
+            method = getattr(self.c, 'dev{}Percent'.format(i))
+            dev_percent.append(method())
+
+        last_dev_percent = 100 - sum(dev_percent)
+        assert last_dev_percent > 0
+        dev_percent.append(last_dev_percent)
+
+        tokens_extra = total_tokens * sum_percent / (100 - sum_percent)
+        tokens_ca = tokens_extra * ca_percent / sum_percent
+        tokens_devs = tokens_extra - tokens_ca
+
+        print "Total tokens:\t{}".format(total_tokens)
+        print "Extra tokens:\t{}".format(tokens_extra)
+        print "CA tokens:\t {}".format(tokens_ca)
+        print "Dev tokens:\t {}".format(tokens_devs)
+        print "Devs", dev_addrs, dev_percent
+
+        # aux verification sum
+        ver_sum = 0
+
+        def error(val, n=3):
+            magnitude = int(math.log10(val))
+            return val / (10 ** (magnitude - n))
+
+        for i in xrange(n_devs):
+            expected = dev_percent[i] * tokens_devs / 100
+            ver_sum += expected
+            err = error(expected)
+            assert expected - err <= self.c.balanceOf(dev_addrs[i]) <= expected + err
+
+        err = error(ver_sum)
+        assert ver_sum - err <= tokens_devs <= ver_sum + err
+
+        ca_balance = self.c.balanceOf(ca)
+        assert ca_balance == tokens_ca
+
+        ver_sum += ca_balance
+        err = error(ver_sum)
+        assert ver_sum - err <= self.c.totalSupply() - total_tokens <= ver_sum + err
+
+    # assumes post funding period
+    def _finalize_funding(self, addr, expected_supply):
+        assert self.c.totalSupply() == expected_supply
+        self.c.finalizeFunding()
+        assert self.c.totalSupply() > expected_supply
+        with self.assertRaises(TransactionFailed):
+            self.c.finalizeFunding()
