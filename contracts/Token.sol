@@ -16,7 +16,8 @@ contract GolemNetworkToken {
 
     // The funding cap in wei.
     uint256 constant tokenCreationCap = 847457627118644067796611 * tokenCreationRate;
-
+    uint256 constant tokenMinTarget =  847457627118644067779661 * tokenCreationRate;
+    
     uint256 fundingStartBlock;
     uint256 fundingEndBlock;
 
@@ -110,6 +111,13 @@ contract GolemNetworkToken {
 
     // Crowdfunding:
 
+    function minTargetReached() constant returns (bool) {
+        if (fundingFinalized())
+            return true;
+
+        return totalTokens >= tokenMinTarget;
+    }
+
     // Helper function to check if the funding has ended. It also handles the
     // case where 'fundingEndBlock' has been zeroed.
     function fundingHasEnded() constant returns (bool) {
@@ -137,7 +145,7 @@ contract GolemNetworkToken {
     }
 
     function transferEnabled() constant returns (bool) {
-        return fundingHasEnded();
+        return fundingHasEnded() && minTargetReached();
     }
 
     // Helper function to get number of tokens left during the funding.
@@ -149,7 +157,7 @@ contract GolemNetworkToken {
     }
 
     function changeGolemFactory(address _golemFactory) external {
-        if (!fundingFinalized()) throw; // Only after the crowdfundin is finalized
+        if (!fundingFinalized()) throw; // Only after the crowdfunding is finalized
 
         // TODO: Sort function by importance.
         if (msg.sender == golemFactory)
@@ -178,6 +186,21 @@ contract GolemNetworkToken {
         Transfer(0, msg.sender, numTokens);
     }
 
+    // used to return ETH to funders in case minTarget was not reached
+    // each funder has to call this function to have his/her eth sent back
+    function refund() external {
+        if (fundingFinalized()) throw;
+        if (!fundingHasEnded()) throw;
+        if (minTargetReached()) throw;
+
+        var gntValue = balances[msg.sender];
+        balances[msg.sender] = 0;
+        totalTokens -= gntValue;
+        var ethValue = gntValue / tokenCreationRate;
+
+        if (ethValue > 0 && !msg.sender.send(ethValue)) throw;   
+    }
+
     // If cap was reached or crowdfunding has ended then:
     // Transfer ETH to the golemFactory address
     // Create GNT for the golemFactory (representing the company)
@@ -186,6 +209,7 @@ contract GolemNetworkToken {
     // Set finalize flag to true (fundingEndBlock == 0)
     // FIXME: Any events to be added here?
     function finalizeFunding() external {
+        if (!minTargetReached()) throw;
         if (fundingFinalized()) throw;
         if (!fundingHasEnded()) throw;
 
