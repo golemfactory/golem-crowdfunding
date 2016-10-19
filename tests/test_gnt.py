@@ -25,6 +25,9 @@ MIGRATION_ABI = open('tests/MigrationAgent.abi', 'r').read()
 TARGET_INIT = decode_hex(open('tests/GNTTargetToken.bin', 'r').read().rstrip())
 TARGET_ABI = open('tests/GNTTargetToken.abi', 'r').read()
 
+WALLET_INIT = decode_hex(open('tests/BadWallet.bin', 'r').read().rstrip())
+WALLET_ABI = open('tests/BadWallet.abi', 'r').read()
+
 
 class GNTCrowdfundingTest(unittest.TestCase):
 
@@ -62,6 +65,22 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.c = tester.ABIContract(self.state, GNT_ABI, addr)
         return addr, owner.gas()
 
+    def deploy_wallet(self, _founder, creator_idx=9):
+        assert not hasattr(self, 'c')
+        owner = self.monitor(creator_idx)
+        t = abi.ContractTranslator(WALLET_ABI)
+        args = t.encode_constructor_arguments([])
+        addr = self.state.evm(WALLET_INIT + args,
+                              sender=owner.key)
+        self.wallet = tester.ABIContract(self.state, WALLET_ABI, addr)
+
+        return addr, owner.gas()
+
+    def deploy_contract_on_wallet(self, _founder, start, end):
+        c_addr = self.wallet.deploy_contract(_founder, start, end)
+        self.c = tester.ABIContract(self.state, GNT_ABI, c_addr)
+        return c_addr
+
     def deploy_migration_contract(self, source_contract, creator_idx=9):
         owner = self.monitor(creator_idx)
         t = abi.ContractTranslator(MIGRATION_ABI)
@@ -80,6 +99,75 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.t = tester.ABIContract(self.state, TARGET_ABI, addr)
         return addr, owner.gas()
 
+    def test_wallet_deploy(self):
+        founder = tester.accounts[9]
+        key = tester.keys[9]
+        wallet_addr, _ = self.deploy_wallet(founder)
+        c_addr = self.deploy_contract_on_wallet(founder, 1, 1)
+        self.state.mine(1)
+        value = 11
+        self.state.send(tester.keys[0], c_addr, value)
+        self.state.send(tester.keys[0], wallet_addr, value)
+
+    def test_wallet_looping_in_payable(self):
+        founder = tester.accounts[9]
+        key = tester.keys[9]
+        wallet_addr, g0 = self.deploy_wallet(founder)
+        assert 0 == self.wallet.get_out_i(sender=key)
+        self.wallet.set_extra_work(1, sender=key)
+        extra = 10 # 601 passes, 602 fails send
+        value = 11
+        self.wallet.set_extra_work(extra);
+        self.state.mine(1)
+        initial_b = self.state.block.get_balance(founder)
+        self.state.send(tester.keys[0], wallet_addr, value)
+        self.state.mine(1)
+        current_b = self.state.block.get_balance(founder)
+        assert extra == self.wallet.get_out_i(sender=key)
+        assert current_b != initial_b
+        assert current_b == initial_b + value
+
+    def test_good_wallet(self):
+        founder = tester.accounts[9]
+        key = tester.keys[9]
+        wallet_addr, g0 = self.deploy_wallet(founder)
+        c_addr = self.deploy_contract_on_wallet(founder, 1, 1)
+        value = 1 * denoms.szabo
+        self.state.mine(1)
+        self.state.send(tester.k1, c_addr, value)
+        self.state.mine(3)
+        extra = 0
+        self.wallet.set_extra_work(extra);
+        assert extra == self.wallet.get_extra_work();
+        initial_b = self.state.block.get_balance(founder)
+        self.wallet.finalize(c_addr, value, sender=key)
+        self.state.mine(1)
+        current_b = self.state.block.get_balance(founder)
+        print "{} < {} < {}".format(initial_b, current_b,
+                                             initial_b + 0.999 * value)
+        assert current_b < initial_b + value
+        assert current_b > initial_b + 0.999 * value
+        assert extra == self.wallet.get_out_i(sender=key)
+
+    def test_bad_wallet(self):
+        founder = tester.accounts[9]
+        key = tester.keys[9]
+        wallet_addr, g0 = self.deploy_wallet(founder)
+        c_addr = self.deploy_contract_on_wallet(founder, 1, 1)
+        value = 1000 * denoms.ether
+        self.state.mine(1)
+        self.state.send(tester.k1, c_addr, value)
+        self.state.mine(3)
+        extra = 1
+        self.wallet.set_extra_work(extra);
+        assert extra == self.wallet.get_extra_work();
+        initial_b = self.state.block.get_balance(founder)
+        self.wallet.finalize(c_addr, value, sender=key)
+        self.state.mine(1)
+        current_b = self.state.block.get_balance(founder)
+        assert 0 == self.wallet.get_out_i(sender=key) # OK
+        assert current_b < initial_b # spend some gas and failed
+
     def contract_balance(self):
         return self.state.block.get_balance(self.c.address)
 
@@ -89,6 +177,11 @@ class GNTCrowdfundingTest(unittest.TestCase):
     def transfer(self, sender, to, value):
         return self.c.transfer(to, value, sender=sender)
 
+    def test_initial_balance(self):
+        founder = tester.accounts[8]
+        self.deploy_contract(founder, 5, 105)
+        assert self.balance_of(8) == 0
+
     def test_deployment(self):
         founder = tester.accounts[2]
         c, g = self.deploy_contract(founder, 5, 105)
@@ -97,11 +190,6 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.contract_balance() == 0
         assert decode_hex(self.c.golemFactory()) == founder
         assert not self.c.fundingOngoing()
-
-    def test_initial_balance(self):
-        founder = tester.accounts[8]
-        self.deploy_contract(founder, 5, 105)
-        assert self.balance_of(8) == 0
 
     def test_transfer_enabled_after_end_block(self):
         founder = tester.accounts[4]
