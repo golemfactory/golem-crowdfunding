@@ -121,10 +121,6 @@ contract GolemNetworkToken {
         return totalTokens >= tokenCreationCap;
     }
 
-    function fundingNotStarted() constant returns (bool) {
-        return block.number < fundingStartBlock;
-    }
-
     function fundingFinalized() constant returns (bool) {
         return fundingEndBlock == 0;
     }
