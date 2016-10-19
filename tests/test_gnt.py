@@ -52,6 +52,14 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
     def setUp(self):
         self.state = tester.state()
+        # private contract properties ->
+        self.wei_max = 820000 * denoms.ether
+        self.wei_min = 150000 * denoms.ether
+        self.n_devs = 6
+        self.ca_percent = 12
+        self.devs_percent = 6
+        self.sum_percent = self.ca_percent + self.devs_percent
+        # <- private contract properties
 
     def deploy_contract(self, founder, start, end, creator_idx=9):
         owner = self.monitor(creator_idx)
@@ -93,7 +101,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         founder = tester.accounts[2]
         c, g = self.deploy_contract(founder, 5, 105)
         assert len(c) == 20
-        assert g <= 800000
+        assert g <= 850000
         assert self.contract_balance() == 0
         assert decode_hex(self.c.golemFactory()) == founder
         assert not self.c.fundingOngoing()
@@ -105,10 +113,14 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
     def test_transfer_enabled_after_end_block(self):
         founder = tester.accounts[4]
-        self.deploy_contract(founder, 3, 13)
+        addr, _ = self.deploy_contract(founder, 3, 13)
         assert self.state.block.number == 0
         assert not self.c.transferEnabled()
-        for _ in range(13):
+        self.state.mine(3)
+        assert self.state.block.number == 3
+        assert not self.c.transferEnabled()
+        self.state.send(tester.k0, addr, self.wei_min)
+        for _ in range(10):
             self.state.mine()
             assert not self.c.transferEnabled()
         assert self.state.block.number == 13
@@ -125,11 +137,26 @@ class GNTCrowdfundingTest(unittest.TestCase):
             assert not self.c.transferEnabled()
         self.state.send(tester.keys[0], addr, 11)
         assert not self.c.transferEnabled()
-        self.state.send(tester.keys[1], addr, 847457627118644067796600)
+        self.state.send(tester.keys[1], addr, 820000000000000000000000 - 11)
         assert self.c.transferEnabled()
+        with self.assertRaises(TransactionFailed):
+            self.state.send(tester.keys[2], addr, 1)
         for _ in range(8):
             self.state.mine()
             assert self.c.transferEnabled()
+
+    def test_transfer_enabled_with_min_fund_not_reached(self):
+        founder = tester.accounts[2]
+        addr, _ = self.deploy_contract(founder, 3, 7)
+        assert not self.c.transferEnabled()
+        self.state.mine(3)
+        assert not self.c.transferEnabled()
+        self.state.send(tester.keys[0], addr, 10)
+        assert not self.c.transferEnabled()
+        self.state.send(tester.keys[1], addr, 10000)
+        for _ in range(20):
+            self.state.mine()
+            assert not self.c.transferEnabled()
 
     def test_total_supply(self):
         founder = tester.accounts[7]
@@ -149,12 +176,13 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.c.totalSupply() == 7000000
         self.state.send(tester.keys[7], addr, 1)
         assert self.c.totalSupply() == 7001000
+        self.state.send(tester.keys[0], addr, self.wei_min - 7001)
         self.state.mine(3)
-        assert self.c.totalSupply() == 7001000
+        assert self.c.totalSupply() == self.wei_min * 1000
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.keys[7], addr, 10)
         supplyBeforeEndowment = self.c.totalSupply()
-        assert supplyBeforeEndowment == 7001000
+        assert supplyBeforeEndowment == self.wei_min * 1000
         self.c.finalizeFunding(sender=tester.keys[7])
         supplyAfterEndowment = self.c.totalSupply()
         endowmentPercent = (supplyAfterEndowment - supplyBeforeEndowment) \
@@ -233,15 +261,17 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         self.state.mine(1)
         assert self.c.fundingOngoing()
-        value = 113 * denoms.szabo
+        value = self.wei_min
         tokens = value * self.c.tokenCreationRate()
         # Create tokens for 1 ether.
         self.state.send(tester.k1, addr, value)
         assert self.balance_of(1) == tokens
 
-        # At this point a1 has GNT but cannot frasfer them.
+        # At this point a1 has GNT but cannot transfer them.
         assert not self.c.transferEnabled()
         assert self.transfer(tester.k1, tester.a2, tokens) is False
+
+        snapshot = self.state.snapshot()
 
         # Funding has ended.
         self.state.mine(1)
@@ -253,7 +283,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
     def test_migration(self):
         s_addr, _ = self.deploy_contract(tester.a9, 2, 2)
         source = self.c
-        eths = 3 * denoms.ether
+        eths = self.wei_min
 
         # pre funding
         self.state.mine(1)
@@ -282,7 +312,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         assert not source.migrationEnabled()
 
-        self._finalize_funding(s_addr, expected_supply=value)
+        self._finalize_funding(expected_supply=value)
 
         # migration and target token contracts
         # funding _should_ already be over (target amount of GNT)
@@ -327,16 +357,17 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
     def test_multiple_migrations(self):
         s_addr, _ = self.deploy_contract(tester.a9, 1, 1)
-        n_accounts = len(tester.accounts) - 1
+        n_testers = len(tester.accounts) - 1
 
-        values = [0] * n_accounts
+        values = [0] * n_testers
 
         # funding
         self.state.mine(1)
 
         # testers purchase tokens
-        for i in range(0, n_accounts):
-            value = random.randrange(10, 1000) * denoms.ether
+        eths = self._divide_eth(self.wei_min, n_testers)
+        for i in range(0, n_testers):
+            value = eths[i]
             self.state.send(tester.keys[i], s_addr, value)
             values[i] += value
 
@@ -349,7 +380,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # post funding
         self.state.mine(1)
 
-        self._finalize_funding(s_addr, expected_supply=total * creation_rate)
+        self._finalize_funding(expected_supply=total * creation_rate)
         # additional tokens are generated for the golem agent and devs
         supply_after_finalization = source.totalSupply()
 
@@ -367,7 +398,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         # testers migrate tokens in parts
         for j in range(0, 10):
-            for i in range(0, n_accounts):
+            for i in range(0, n_testers):
                 value = creation_rate * values[i] / 10
                 source.migrate(value, sender=tester.keys[i])
                 assert target.balanceOf(tester.accounts[i]) == value * (j + 1)
@@ -459,16 +490,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
     def test_finalize_funding(self):
         addr, _ = self.deploy_contract(tester.a9, 2, 2)
-
-        # private properties ->
-        n_devs = 6
-        ca_percent = 12
-        devs_percent = 6
-        sum_percent = ca_percent + devs_percent
-        # <- private properties
-
-        ca = self.c.golemFactory()
+        gf = self.c.golemFactory()
         creation_rate = self.c.tokenCreationRate()
+        n_testers = len(tester.accounts) - 1
 
         # -- before funding
         self.state.mine(1)
@@ -479,8 +503,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # -- during funding
         self.state.mine(1)
 
-        n_testers = len(tester.accounts) - 1
-        eths = [(i + 1) * 100 * denoms.ether for i in xrange(n_testers)]
+        # more than min ethers
+        eths = self._divide_eth(self.wei_min, n_testers)
+
         for i, e in enumerate(eths):
             self.state.send(tester.keys[i], addr, e)
             assert self.c.balanceOf(tester.accounts[i]) == creation_rate * e
@@ -501,12 +526,12 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         # verify values
         dev_addrs = []
-        for i in xrange(n_devs):
+        for i in xrange(self.n_devs):
             method = getattr(self.c, 'dev{}'.format(i))
             dev_addrs.append(method())
 
         dev_percent = []
-        for i in xrange(n_devs - 1):
+        for i in xrange(self.n_devs - 1):
             method = getattr(self.c, 'dev{}Percent'.format(i))
             dev_percent.append(method())
 
@@ -514,8 +539,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert last_dev_percent > 0
         dev_percent.append(last_dev_percent)
 
-        tokens_extra = total_tokens * sum_percent / (100 - sum_percent)
-        tokens_ca = tokens_extra * ca_percent / sum_percent
+        tokens_extra = total_tokens * self.sum_percent / (100 - self.sum_percent)
+        tokens_ca = tokens_extra * self.ca_percent / self.sum_percent
         tokens_devs = tokens_extra - tokens_ca
 
         print "Total tokens:\t{}".format(total_tokens)
@@ -531,7 +556,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
             magnitude = int(math.log10(val))
             return val / (10 ** (magnitude - n))
 
-        for i in xrange(n_devs):
+        for i in xrange(self.n_devs):
             expected = dev_percent[i] * tokens_devs / 100
             ver_sum += expected
             err = error(expected)
@@ -540,7 +565,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         err = error(ver_sum)
         assert ver_sum - err <= tokens_devs <= ver_sum + err
 
-        ca_balance = self.c.balanceOf(ca)
+        ca_balance = self.c.balanceOf(gf)
         assert ca_balance == tokens_ca
 
         ver_sum += ca_balance
@@ -548,9 +573,35 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert ver_sum - err <= self.c.totalSupply() - total_tokens <= ver_sum + err
 
     # assumes post funding period
-    def _finalize_funding(self, addr, expected_supply):
+    def _finalize_funding(self, expected_supply):
         assert self.c.totalSupply() == expected_supply
         self.c.finalizeFunding()
         assert self.c.totalSupply() > expected_supply
         with self.assertRaises(TransactionFailed):
             self.c.finalizeFunding()
+
+    @classmethod
+    def _divide_eth(cls, pool, n_items):
+        eths = [int(round(e * pool)) for e in cls._percentages(n_items)]
+        eths_sum = sum(eths)
+        if eths_sum < pool:
+            eths[-1] += pool - eths_sum
+        return eths
+
+    @staticmethod
+    def _percentages(n_items):
+        """
+        Create and normalize a geometric series for n_items > 1
+        :param n_items: Number of items in the series
+        :return:
+        """
+        if n_items <= 1:
+            return [1.]
+
+        def sn(n):
+            a, q = 10, 0.9
+            return a * (1 - q ** n) / (1 - q)
+
+        series = [sn(x) for x in xrange(1, n_items + 1)]
+        series_sum = sum(series)
+        return [float(x) / series_sum for x in series]

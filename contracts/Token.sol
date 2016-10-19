@@ -15,8 +15,8 @@ contract GolemNetworkToken {
     uint256 public constant tokenCreationRate = 1000;
 
     // The funding cap in wei.
-    uint256 constant tokenCreationCap = 847457627118644067796611 * tokenCreationRate;
-    uint256 constant tokenMinTarget =  847457627118644067779661 * tokenCreationRate;
+    uint256 constant tokenCreationCap = 820000000000000000000000 * tokenCreationRate;
+    uint256 constant tokenMinTarget =  150000000000000000000000 * tokenCreationRate;
     
     uint256 fundingStartBlock;
     uint256 fundingEndBlock;
