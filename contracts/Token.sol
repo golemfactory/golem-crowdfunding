@@ -15,8 +15,8 @@ contract GolemNetworkToken {
     uint256 public constant tokenCreationRate = 1000;
 
     // The funding cap in wei.
-    uint256 constant tokenCreationCap = 820000000000000000000000 * tokenCreationRate;
-    uint256 constant tokenMinTarget =  120000000000000000000000 * tokenCreationRate;
+    uint256 constant tokenCreationCap = 820000 ether * tokenCreationRate;
+    uint256 constant tokenCreationMin =  150000 ether * tokenCreationRate;
 
     uint256 fundingStartBlock;
     uint256 fundingEndBlock;
@@ -119,6 +119,7 @@ contract GolemNetworkToken {
         return block.number > fundingStartBlock && block.number <= fundingEndBlock && !targetMinReached && !fundingComplete;
     }
 
+    // Helper function
     function fundingIsComplete() constant returns (bool) {
         return fundingComplete;
     }
@@ -158,7 +159,7 @@ contract GolemNetworkToken {
         balances[msg.sender] += numTokens;
         totalTokens += numTokens;
         
-        if (totalTokens >= tokenMinTarget)
+        if (totalTokens >= tokenCreationMin)
             targetMinReached = true;
         
         if (totalTokens >= tokenCreationCap)
@@ -217,7 +218,7 @@ contract GolemNetworkToken {
         totalTokens -= gntValue;
         
         var ethValue = gntValue / tokenCreationRate;
-        if (ethValue > 0) throw;
+        if (ethValue == 0) throw;
         if (!msg.sender.send(ethValue)) throw;   
     }
     
