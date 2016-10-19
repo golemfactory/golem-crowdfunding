@@ -125,7 +125,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
             assert not self.c.transferEnabled()
         self.state.send(tester.keys[0], addr, 11)
         assert not self.c.transferEnabled()
-        self.state.send(tester.keys[1], addr, 847457627118644067796600)
+        self.state.send(tester.keys[1], addr, 820000 * denoms.ether - 11)
         assert self.c.transferEnabled()
         for _ in range(8):
             self.state.mine()
