@@ -114,6 +114,10 @@ contract GolemNetworkToken {
     // Helper function to check if the funding has ended. It also handles the
     // case where 'fundingEndBlock' has been zeroed.
     function fundingHasEnded() constant returns (bool) {
+        // The funding does not end until minimum number of tokens created.
+        if (totalTokens < tokenCreationMin)
+            return false;
+
         if (block.number > fundingEndBlock)
             return true;
 
@@ -128,9 +132,9 @@ contract GolemNetworkToken {
 
     // Are we in the funding period?
     function fundingOngoing() constant returns (bool) {
-        if (fundingHasEnded())
-            return false;
-        return block.number >= fundingStartBlock;
+        return block.number >= fundingStartBlock &&
+               block.number <= fundingEndBlock &&
+               totalTokens < tokenCreationCap;
     }
 
     function transferEnabled() constant returns (bool) {
@@ -173,6 +177,18 @@ contract GolemNetworkToken {
         totalTokens += numTokens;
         // Notify about the token generation with a transfer event from 0 address.
         Transfer(0, msg.sender, numTokens);
+    }
+
+    // Allow funder to get back his ether if the minimum required number of
+    // tokens has not been created during the funding.
+    function refund() external {
+        if (block.number <= fundingEndBlock) throw;
+        if (totalTokens >= tokenCreationMin) throw;
+
+        uint balance = balances[msg.sender];
+        balances[msg.sender] = 0;
+        uint value = balance / tokenCreationRate;
+        if (!msg.sender.send(value)) throw;
     }
 
     // If cap was reached or crowdfunding has ended then:
