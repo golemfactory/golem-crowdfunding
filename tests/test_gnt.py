@@ -76,8 +76,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         return addr, owner.gas()
 
-    def deploy_contract_on_wallet(self, _founder, start, end):
-        c_addr = self.wallet.deploy_contract(_founder, start, end)
+    def deploy_contract_on_wallet(self, wallet_addr, start, end):
+        c_addr = self.wallet.deploy_contract(wallet_addr, start, end)
         self.c = tester.ABIContract(self.state, GNT_ABI, c_addr)
         return c_addr
 
@@ -103,11 +103,21 @@ class GNTCrowdfundingTest(unittest.TestCase):
         founder = tester.accounts[9]
         key = tester.keys[9]
         wallet_addr, _ = self.deploy_wallet(founder)
-        c_addr = self.deploy_contract_on_wallet(founder, 1, 1)
+        c_addr = self.deploy_contract_on_wallet(wallet_addr, 1, 1)
         self.state.mine(1)
-        value = 11
-        self.state.send(tester.keys[0], c_addr, value)
+
+    def test_payment_to_wallet(self):
+        founder = tester.accounts[9]
+        key = tester.keys[9]
+        wallet_addr, _ = self.deploy_wallet(founder)
+        self.state.mine(1)
+        value = 11000
         self.state.send(tester.keys[0], wallet_addr, value)
+        initial_b = self.state.block.get_balance(wallet_addr)
+        self.state.send(tester.keys[0], wallet_addr, value)
+        self.state.mine(1)
+        current_b = self.state.block.get_balance(wallet_addr)
+        assert current_b == initial_b + value
 
     def test_wallet_looping_in_payable(self):
         founder = tester.accounts[9]
@@ -116,22 +126,21 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert 0 == self.wallet.get_out_i(sender=key)
         self.wallet.set_extra_work(1, sender=key)
         extra = 10 # 601 passes, 602 fails send
-        value = 11
+        value = 11000
         self.wallet.set_extra_work(extra);
         self.state.mine(1)
-        initial_b = self.state.block.get_balance(founder)
+        initial_b = self.state.block.get_balance(wallet_addr)
         self.state.send(tester.keys[0], wallet_addr, value)
         self.state.mine(1)
-        current_b = self.state.block.get_balance(founder)
+        current_b = self.state.block.get_balance(wallet_addr)
         assert extra == self.wallet.get_out_i(sender=key)
-        assert current_b != initial_b
         assert current_b == initial_b + value
 
     def test_good_wallet(self):
         founder = tester.accounts[9]
         key = tester.keys[9]
         wallet_addr, g0 = self.deploy_wallet(founder)
-        c_addr = self.deploy_contract_on_wallet(founder, 1, 1)
+        c_addr = self.deploy_contract_on_wallet(wallet_addr, 1, 1)
         value = 1 * denoms.szabo
         self.state.mine(1)
         self.state.send(tester.k1, c_addr, value)
@@ -139,21 +148,18 @@ class GNTCrowdfundingTest(unittest.TestCase):
         extra = 0
         self.wallet.set_extra_work(extra);
         assert extra == self.wallet.get_extra_work();
-        initial_b = self.state.block.get_balance(founder)
-        self.wallet.finalize(c_addr, value, sender=key)
+        initial_b = self.state.block.get_balance(wallet_addr)
+        self.wallet.finalize(c_addr, sender=key)
         self.state.mine(1)
-        current_b = self.state.block.get_balance(founder)
-        print "{} < {} < {}".format(initial_b, current_b,
-                                             initial_b + 0.999 * value)
-        assert current_b < initial_b + value
-        assert current_b > initial_b + 0.999 * value
+        current_b = self.state.block.get_balance(wallet_addr)
+        assert current_b == initial_b + value
         assert extra == self.wallet.get_out_i(sender=key)
 
     def test_bad_wallet(self):
         founder = tester.accounts[9]
         key = tester.keys[9]
         wallet_addr, g0 = self.deploy_wallet(founder)
-        c_addr = self.deploy_contract_on_wallet(founder, 1, 1)
+        c_addr = self.deploy_contract_on_wallet(wallet_addr, 1, 1)
         value = 1000 * denoms.ether
         self.state.mine(1)
         self.state.send(tester.k1, c_addr, value)
@@ -161,12 +167,16 @@ class GNTCrowdfundingTest(unittest.TestCase):
         extra = 1
         self.wallet.set_extra_work(extra);
         assert extra == self.wallet.get_extra_work();
-        initial_b = self.state.block.get_balance(founder)
-        self.wallet.finalize(c_addr, value, sender=key)
+        initial_wb = self.state.block.get_balance(wallet_addr)
+        initial_fb = self.state.block.get_balance(founder)
+        with self.assertRaises(TransactionFailed):
+            self.wallet.finalize(c_addr, sender=key)
         self.state.mine(1)
-        current_b = self.state.block.get_balance(founder)
+        current_wb = self.state.block.get_balance(wallet_addr)
+        current_fb = self.state.block.get_balance(founder)
         assert 0 == self.wallet.get_out_i(sender=key) # OK
-        assert current_b < initial_b # spend some gas and failed
+        assert current_wb == initial_wb
+        assert current_fb < initial_fb
 
     def contract_balance(self):
         return self.state.block.get_balance(self.c.address)

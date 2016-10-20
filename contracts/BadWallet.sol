@@ -4,7 +4,6 @@ import * as Source from "./Token.sol";
 
 contract BadWallet {
     uint16 extra_work = 0; // amount of work to be done when accepting payment
-                           // value of 1 corresponds to at least 5000 gas
     uint16 public out_i;
     address wallet;
     
@@ -32,7 +31,7 @@ contract BadWallet {
         return wallet;
     }
     
-    function finalize(address _crowdfundingContract, uint256 _amount) {
+    function finalize(address _crowdfundingContract) {
         Source.GolemNetworkToken(_crowdfundingContract).finalizeFunding();
     }
 
