@@ -22,7 +22,7 @@ contract GolemNetworkToken {
     uint256 fundingEndBlock;
     bool fundingComplete = false;
     bool public targetMinReached = false;
-    bool finalized = false;
+    bool public finalized = false;
 
     address public golemFactory;
 
@@ -89,12 +89,8 @@ contract GolemNetworkToken {
 
     // Token migration support:
 
-    function migrationEnabled() public constant returns (bool) {
-        return migrationAgent != 0;
-    }
-
     function migrate(uint256 _value) {
-        if (!migrationEnabled()) throw;
+        if (migrationAgent == 0) throw;
         if (_value == 0 || _value > balances[msg.sender]) throw;
 
         balances[msg.sender] -= _value;
@@ -105,12 +101,10 @@ contract GolemNetworkToken {
     }
 
     function setMigrationAgent(address _agent) external {
-        // Can't set agent if already set or funding isn't complete
-        if (msg.sender != golemFactory || migrationEnabled() || !fundingComplete || !targetMinReached) throw;
+        // Can't set agent if already set or funding isn't finalized
+        if (msg.sender != golemFactory || migrationAgent != 0 || !finalized) throw;
         
-        // Migration can't occur until developer tokens were created
-        if (finalized && msg.sender == golemFactory)
-            migrationAgent = _agent;
+        migrationAgent = _agent;
     }
 
     // Crowdfunding:
@@ -154,7 +148,7 @@ contract GolemNetworkToken {
         balances[msg.sender] += numTokens;
         totalTokens += numTokens;
         
-        if (totalTokens >= tokenCreationMin)
+        if (totalTokens >= tokenCreationMin && !targetMinReached)
             targetMinReached = true;
         
         if (totalTokens >= tokenCreationCap)
@@ -170,7 +164,7 @@ contract GolemNetworkToken {
     // Create GNT for the developers
     // Update GNT state (number of tokens)
     function finalize() external {
-        if (fundingActive() || !targetMinReached || block.number <= fundingEndBlock || finalized) throw;
+        if (fundingActive() || block.number <= fundingEndBlock || finalized) throw;
         fundingComplete = true;
 
         // 1. Transfer ETH to the golemFactory address
@@ -206,7 +200,7 @@ contract GolemNetworkToken {
     }
     
     function refund() external {
-        if (fundingActive() || targetMinReached || block.number <= fundingEndBlock) throw;
+        if (fundingActive() || targetMinReached) throw;
 
         var gntValue = balances[msg.sender];
         if (gntValue == 0) throw;

@@ -272,14 +272,13 @@ class GNTCrowdfundingTest(unittest.TestCase):
     def test_migration(self):
         s_addr, _ = self.deploy_contract(tester.a9, 2, 2)
         source = self.c
-        eths = source.tokenCreationMin() / source.tokenCreationRate()
+        eths = source.tokenCreationCap() / source.tokenCreationRate()
 
         # pre funding
         self.state.mine(1)
         with self.assertRaises(ContractCreationFailed):
             _1, _2 = self.deploy_migration_contract(s_addr)
-
-        assert not source.migrationEnabled()
+        assert not source.finalized()
 
         # funding
         self.state.mine(1)
@@ -287,8 +286,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         with self.assertRaises(ContractCreationFailed):
             _1, _2 = self.deploy_migration_contract(s_addr)
-
-        assert not source.migrationEnabled()
+        assert source.transferEnabled() is True
+        assert not source.finalized()
 
         creation_rate = source.tokenCreationRate()
         value = eths * creation_rate
@@ -299,9 +298,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
         with self.assertRaises(ContractCreationFailed):
             _1, _2 = self.deploy_migration_contract(s_addr)
 
-        assert not source.migrationEnabled()
-
+        assert not source.finalized()
         self._finalize_funding(s_addr, expected_supply=value)
+        assert source.finalized()
 
         # migration and target token contracts
         # funding _should_ already be over (target amount of GNT)
@@ -314,7 +313,6 @@ class GNTCrowdfundingTest(unittest.TestCase):
         source.setMigrationAgent(m_addr, sender=tester.k9)
         migration.setTargetToken(t_addr, sender=tester.k9)
 
-        assert source.migrationEnabled()
         assert source.balanceOf(tester.a1) == value
         assert target.balanceOf(tester.a1) == 0
 
