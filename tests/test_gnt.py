@@ -155,14 +155,15 @@ class GNTCrowdfundingTest(unittest.TestCase):
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.keys[0], addr, 0)
         assert self.c.totalSupply() == 7000000
-        self.state.send(tester.keys[7], addr, 1)
-        assert self.c.totalSupply() == 7001000
+        self.state.send(tester.keys[7], addr, self.c.tokenCreationMin() / self.c.tokenCreationRate())
+        assert self.c.totalSupply() == 7000000 + self.c.tokenCreationMin()
+        # mine past funding period
         self.state.mine(3)
-        assert self.c.totalSupply() == 7001000
+        assert self.c.totalSupply() == 7000000 + self.c.tokenCreationMin()
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.keys[7], addr, 10)
         supplyBeforeEndowment = self.c.totalSupply()
-        assert supplyBeforeEndowment == 7001000
+        assert supplyBeforeEndowment == 7000000 + self.c.tokenCreationMin()
         self.c.finalize(sender=tester.keys[7])
         supplyAfterEndowment = self.c.totalSupply()
         endowmentPercent = (supplyAfterEndowment - supplyBeforeEndowment) \
