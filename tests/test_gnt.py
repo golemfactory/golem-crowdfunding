@@ -639,16 +639,30 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.mine(1)
         self.state.send(tester.k1, c_addr, value)
         self.state.mine(3)
+        # fail with wallet
         extra = 1
         self.wallet.set_extra_work(extra);
         assert extra == self.wallet.get_extra_work();
+        initial_cb = self.state.block.get_balance(c_addr)
         initial_wb = self.state.block.get_balance(wallet_addr)
         initial_fb = self.state.block.get_balance(founder)
         with self.assertRaises(TransactionFailed):
             self.wallet.finalize(c_addr, sender=key)
         self.state.mine(1)
+        current_cb = self.state.block.get_balance(c_addr)
         current_wb = self.state.block.get_balance(wallet_addr)
         current_fb = self.state.block.get_balance(founder)
         assert 0 == self.wallet.get_out_i(sender=key) # OK
+        assert current_cb == initial_cb
         assert current_wb == initial_wb
         assert current_fb < initial_fb
+        # check if first failed attempt does not lock Token contract indefinitely
+        extra = 0
+        self.wallet.set_extra_work(extra);
+        assert extra == self.wallet.get_extra_work();
+        initial_wb = self.state.block.get_balance(wallet_addr)
+        self.wallet.finalize(c_addr, sender=key)
+        self.state.mine(1)
+        current_wb = self.state.block.get_balance(wallet_addr)
+        assert current_wb == initial_wb + value
+        assert extra == self.wallet.get_out_i(sender=key)
