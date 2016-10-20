@@ -96,7 +96,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert g <= 1000000
         assert self.contract_balance() == 0
         assert decode_hex(self.c.golemFactory()) == founder
-        assert not self.c.isFundingOngoing()
+        assert not self.c.fundingActive()
 
     def test_initial_balance(self):
         founder = tester.accounts[8]
@@ -243,10 +243,10 @@ class GNTCrowdfundingTest(unittest.TestCase):
     def test_transfer_locked(self):
         addr, _ = self.deploy_contract(tester.a0, 1, 1)
 
-        assert not self.c.isFundingOngoing()
+        assert not self.c.fundingActive()
 
         self.state.mine(1)
-        assert self.c.isFundingOngoing()
+        assert self.c.fundingActive()
         # Create tokens to meet minimum funding
         tokens = self.c.tokenCreationMin()
         value = tokens / self.c.tokenCreationRate()
@@ -423,14 +423,14 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.contract_balance() == 0
 
         self.state.mine(7)
-        assert self.c.isFundingOngoing()
+        assert self.c.fundingActive()
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.k3, addr, value=0, evmdata=random_data)
         assert self.c.totalSupply() == 0
         assert self.contract_balance() == 0
 
         self.state.mine(3)
-        assert not self.c.isFundingOngoing()
+        assert not self.c.fundingActive()
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.k3, addr, value=0, evmdata=random_data)
         assert self.c.totalSupply() == 0
@@ -454,13 +454,13 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.contract_balance() == 0
 
         self.state.mine(7)
-        assert self.c.isFundingOngoing()
+        assert self.c.fundingActive()
         self.state.send(tester.k3, addr, random_value, evmdata=random_data)
         assert self.c.totalSupply() == random_value * self.c.tokenCreationRate()
         assert self.contract_balance() == random_value
 
         self.state.mine(3)
-        assert not self.c.isFundingOngoing()
+        assert not self.c.fundingActive()
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.k4, addr, random_value, evmdata=random_data)
         assert self.c.totalSupply() == random_value * self.c.tokenCreationRate()
