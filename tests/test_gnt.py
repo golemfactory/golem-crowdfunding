@@ -441,7 +441,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         print("RANDOM DATA: {}".format(random_data.encode('hex')))
         addr, _ = self.deploy_contract(tester.a9, 7, 9)
 
-        max_value = self.c.numberOfTokensLeft() / self.c.tokenCreationRate()
+        max_value = self.c.tokenCreationCap() / self.c.tokenCreationRate()
         random_value = randint(0, max_value)
         print("RANDOM VALUE: {}".format(random_value))
 
