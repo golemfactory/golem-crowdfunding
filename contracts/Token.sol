@@ -206,7 +206,6 @@ contract GolemNetworkToken {
         totalTokens -= gntValue;
         
         var ethValue = gntValue / tokenCreationRate;
-        if (ethValue == 0) throw;
         if (!msg.sender.send(ethValue)) throw;   
     }
 }
