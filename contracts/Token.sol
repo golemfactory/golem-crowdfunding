@@ -15,13 +15,13 @@ contract GolemNetworkToken {
     uint256 public constant tokenCreationRate = 1000;
 
     // The funding cap in wei.
-    uint256 constant tokenCreationCap = 820000 ether * tokenCreationRate;
-    uint256 constant tokenCreationMin =  150000 ether * tokenCreationRate;
+    uint256 public constant tokenCreationCap = 820000 ether * tokenCreationRate;
+    uint256 public constant tokenCreationMin =  150000 ether * tokenCreationRate;
 
     uint256 fundingStartBlock;
     uint256 fundingEndBlock;
     bool fundingComplete = false;
-    bool targetMinReached = false;
+    bool public targetMinReached = false;
     bool finalized = false;
 
     address public golemFactory;
@@ -31,22 +31,22 @@ contract GolemNetworkToken {
     // dev0Percent + dev1Percent + dev2Percent + dev3Percent + dev4Percent + dev5Percent = 100
     // dev0Percent > 0 && dev1Percent > 0 && dev2Percent > 0 && dev3Percent > 0 && dev4Percent > 0 && dev5Percent > 0
     // FIXME: array based approach can be used instead, provided that it is safe to use this Solidity feature
-    address constant dev0 = 0xde00;
-    uint256 constant dev0Percent = 10;
+    address public constant dev0 = 0xde00;
+    uint256 public constant dev0Percent = 10;
 
-    address constant dev1 = 0xde01;
-    uint256 constant dev1Percent = 10;
+    address public constant dev1 = 0xde01;
+    uint256 public constant dev1Percent = 10;
 
-    address constant dev2 = 0xde02;
-    uint256 constant dev2Percent = 15;
+    address public constant dev2 = 0xde02;
+    uint256 public constant dev2Percent = 15;
 
-    address constant dev3 = 0xde03;
-    uint256 constant dev3Percent = 20;
+    address public constant dev3 = 0xde03;
+    uint256 public constant dev3Percent = 20;
 
-    address constant dev4 = 0xde04;
-    uint256 constant dev4Percent = 20;
+    address public constant dev4 = 0xde04;
+    uint256 public constant dev4Percent = 20;
 
-    address constant dev5 = 0xde05;
+    address public constant dev5 = 0xde05;
     // uint256 public dev5Percent;  can be calculated as: 100 - dev0Percent - dev1Percent - dev2Percent - dev3Percent - dev4Percent
 
     uint256 totalTokens;
@@ -89,7 +89,7 @@ contract GolemNetworkToken {
 
     // Token migration support:
 
-    function migrationEnabled() constant returns (bool) {
+    function migrationEnabled() public constant returns (bool) {
         return migrationAgent != 0;
     }
 
@@ -116,21 +116,16 @@ contract GolemNetworkToken {
     // Crowdfunding:
 
     function fundingActive() constant returns (bool) {
-        return block.number > fundingStartBlock && block.number <= fundingEndBlock && !targetMinReached && !fundingComplete;
-    }
-
-    // Helper function
-    function fundingIsComplete() constant returns (bool) {
-        return fundingComplete;
+        return block.number >= fundingStartBlock && block.number <= fundingEndBlock && (!targetMinReached || !fundingComplete);
     }
 
     function transferEnabled() constant returns (bool) {
         return fundingComplete && targetMinReached;
     }
-
+    
     // Helper function to get number of tokens left during the funding.
     function numberOfTokensLeft() constant returns (uint256) {
-        if (totalTokens >= tokenCreationCap)
+        if (totalTokens >= tokenCreationCap || !fundingActive())
             return 0;
         return tokenCreationCap - totalTokens;
     }
@@ -144,7 +139,7 @@ contract GolemNetworkToken {
     // Update state when funding period lapses and/or min/max funding occurs
     function() payable external {
         // disable funding after funding period has passed
-        if (block.number > fundingStartBlock && block.number > fundingEndBlock)
+        if (block.number > fundingEndBlock)
             fundingComplete = true;
         
         // half if funding has concluded or empty value is sent
@@ -175,7 +170,8 @@ contract GolemNetworkToken {
     // Create GNT for the developers
     // Update GNT state (number of tokens)
     function finalize() external {
-        if (fundingActive() || !targetMinReached || block.number <= fundingEndBlock) throw;
+        if (fundingActive() || !targetMinReached || block.number <= fundingEndBlock || finalized) throw;
+        fundingComplete = true;
 
         // 1. Transfer ETH to the golemFactory address
         if (!golemFactory.send(this.balance)) throw;
@@ -223,4 +219,6 @@ contract GolemNetworkToken {
     }
     
     
+    /// Helper Functions for Testing
+    function isFundingOngoing() returns (bool) { return fundingActive(); }
 }
