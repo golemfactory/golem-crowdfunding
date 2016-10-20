@@ -109,7 +109,10 @@ contract GolemNetworkToken {
 
     // Crowdfunding:
 
-    function fundingActive() constant returns (bool) {
+    function fundingActive() returns (bool) {
+        // ensure false is returned if called after endblock
+        if (block.number > fundingEndBlock)
+            fundingComplete = true;
         return block.number >= fundingStartBlock && block.number <= fundingEndBlock && (!targetMinReached || !fundingComplete);
     }
 
@@ -132,10 +135,6 @@ contract GolemNetworkToken {
     // Create tokens when funding is active
     // Update state when funding period lapses and/or min/max funding occurs
     function() payable external {
-        // disable funding after funding period has passed
-        if (block.number > fundingEndBlock)
-            fundingComplete = true;
-        
         // half if funding has concluded or empty value is sent
         if (!fundingActive()) throw;
         if (msg.value == 0) throw;
@@ -165,7 +164,6 @@ contract GolemNetworkToken {
     // Update GNT state (number of tokens)
     function finalize() external {
         if (fundingActive() || block.number <= fundingEndBlock || finalized) throw;
-        fundingComplete = true;
 
         // 1. Transfer ETH to the golemFactory address
         if (!golemFactory.send(this.balance)) throw;
@@ -200,7 +198,7 @@ contract GolemNetworkToken {
     }
     
     function refund() external {
-        if (fundingActive() || targetMinReached) throw;
+        if (fundingActive() || transferEnabled()) throw;
 
         var gntValue = balances[msg.sender];
         if (gntValue == 0) throw;
