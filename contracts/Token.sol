@@ -217,8 +217,4 @@ contract GolemNetworkToken {
         if (ethValue == 0) throw;
         if (!msg.sender.send(ethValue)) throw;   
     }
-    
-    
-    /// Helper Functions for Testing
-    function isFundingOngoing() returns (bool) { return fundingActive(); }
 }
