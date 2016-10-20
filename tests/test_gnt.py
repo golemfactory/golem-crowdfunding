@@ -639,7 +639,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.mine(1)
         self.state.send(tester.k1, c_addr, value)
         self.state.mine(3)
-        # fail with wallet
+        # extra>0 will cause Wallet fallback function to burn gas;
+        # send executed from contract has hardcoded limit of gas (2300?)
+        # which is so small that it's not enough to do anything except for receive ether
         extra = 1
         self.wallet.set_extra_work(extra);
         assert extra == self.wallet.get_extra_work();
