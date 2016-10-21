@@ -72,9 +72,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
         def event(self, event_type, **params):
             if self.events:
                 event = self.events.popleft()  # FIFO
-                if event["_event_type"] == event_type:
-                    if all([event.get(n) == v for n, v in params.items()]):
-                        return True
+                type_matches = event["_event_type"] == event_type
+                return type_matches and all([event.get(n) == v for n, v in params.items()])
 
         def _listen(self, event):
             self.events.append(self.contract.translator.listen(event))
