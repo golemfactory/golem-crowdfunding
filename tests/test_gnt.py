@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from random import randint
 from os import urandom
 from ethereum import abi, tester
+from ethereum.exceptions import InvalidTransaction
 from ethereum.tester import TransactionFailed, ContractCreationFailed
 from ethereum.utils import denoms
 from rlp.utils import decode_hex
@@ -29,6 +30,12 @@ TARGET_ABI = open('tests/GNTTargetToken.abi', 'r').read()
 
 WALLET_INIT = decode_hex(open('tests/BadWallet.bin', 'r').read().rstrip())
 WALLET_ABI = open('tests/BadWallet.abi', 'r').read()
+
+GAS_CAP = 2 * 10 ** 5
+
+
+class GasLimitReached(InvalidTransaction):
+    pass
 
 
 class GNTCrowdfundingTest(unittest.TestCase):
@@ -54,6 +61,36 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
     def monitor(self, addr, value=0):
         return self.Monitor(self.state, addr, value)
+
+    class GasMonitor(object):
+
+        def __init__(self, state, limit=GAS_CAP):
+            self.state = state
+            self.limit = limit
+
+        def monitor_contract(self, contract):
+            for name in dir(contract):
+                prop = getattr(contract, name)
+                if callable(prop) and self._should_decorate(name):
+                    setattr(contract, name, self._decorate(prop, name))
+
+        @staticmethod
+        def _should_decorate(name):
+            return not name.startswith('_') and name != 'method_factory'
+
+        def _decorate(self, fn, name):
+            def wrap(*args, **kwargs):
+
+                gas_before = self.state.block.gas_used
+                result = fn(*args, **kwargs)
+                gas_used = self.state.block.gas_used - gas_before
+
+                if gas_used > self.limit:
+                    raise GasLimitReached("Too much gas used by {}: {} of {}"
+                                          .format(name, gas_used, self.limit))
+                print "{} used {} gas".format(name, gas_used)
+                return result
+            return wrap
 
     class EventListener:
         def __init__(self, contract, state):
@@ -87,6 +124,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
     def setUp(self):
         self.state = tester.state()
+        self.gas_monitor = self.GasMonitor(self.state)
 
     def deploy_contract(self, founder, start, end, creator_idx=9):
         owner = self.monitor(creator_idx)
@@ -95,6 +133,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         addr = self.state.evm(GNT_INIT + args,
                               sender=owner.key)
         self.c = tester.ABIContract(self.state, GNT_ABI, addr)
+        self.gas_monitor.monitor_contract(self.c)
         return addr, owner.gas()
 
     def deploy_wallet(self, _founder, creator_idx=9):
@@ -120,6 +159,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         addr = self.state.evm(MIGRATION_INIT + args,
                               sender=owner.key)
         self.m = tester.ABIContract(self.state, MIGRATION_ABI, addr)
+        self.gas_monitor.monitor_contract(self.m)
         return addr, owner.gas()
 
     def deploy_target_contract(self, migration_contract, creator_idx=9):
@@ -129,6 +169,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         addr = self.state.evm(TARGET_INIT + args,
                               sender=owner.key)
         self.t = tester.ABIContract(self.state, TARGET_ABI, addr)
+        self.gas_monitor.monitor_contract(self.t)
         return addr, owner.gas()
 
     def contract_balance(self):
@@ -149,7 +190,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         founder = tester.accounts[2]
         c, g = self.deploy_contract(founder, 5, 105)
         assert len(c) == 20
-        assert g <= 1000000
+        assert g <= 900000
         assert self.contract_balance() == 0
         assert decode_hex(self.c.golemFactory()) == founder
         assert not self.c.fundingActive()
@@ -784,3 +825,15 @@ class GNTCrowdfundingTest(unittest.TestCase):
         current_wb = self.state.block.get_balance(wallet_addr)
         assert current_wb == initial_wb + value
         assert extra == self.wallet.get_out_i(sender=key)
+
+    def test_new_gas_monitor_limit(self):
+        self.gas_monitor = self.GasMonitor(state=self.state, limit=1)
+        addr, _ = self.deploy_contract(tester.a9, 1, 1)
+
+        self.state.mine(1)
+        self.state.send(tester.keys[0], addr, 2 * denoms.ether)
+        self.state.mine(1)
+
+        with self.assertRaises(GasLimitReached):
+            self.c.finalize(sender=tester.keys[0])
+
