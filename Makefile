@@ -1,7 +1,13 @@
-.PHONY: tests clean
+.PHONY: tests unit prop clean
 
 tests: build
 	pytest tests
+
+prop: build
+	pytest tests/test_logic.py
+
+unit: build
+	pytest tests/test_gnt.py
 
 build: tests/GolemNetworkToken.abi tests/GolemNetworkToken.bin tests/GNTTargetToken.bin tests/GNTTargetToken.abi tests/MigrationAgent.bin tests/MigrationAgent.abi tests/BadWallet.bin tests/BadWallet.abi
 
