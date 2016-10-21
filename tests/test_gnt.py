@@ -169,7 +169,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.mine()
         self.c.finalize()
 
-        for _ in range(259):
+        for _ in range(11):
             self.state.mine()
             assert self.c.transferEnabled()
 
@@ -185,10 +185,13 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.send(tester.keys[0], addr, 11)
         assert not self.c.transferEnabled()
         self.state.send(tester.keys[1], addr, self.c.tokenCreationCap() / self.c.tokenCreationRate() - 11)
-        assert self.c.transferEnabled()
+        assert not self.c.transferEnabled()
         for _ in range(8):
             self.state.mine()
-            assert self.c.transferEnabled()
+            assert not self.c.transferEnabled()
+        # Transfer is enabled after the funding is finalized.
+        self.c.finalize(sender=tester.k5)
+        assert self.c.transferEnabled()
 
     def test_total_supply(self):
         founder = tester.accounts[7]
@@ -316,7 +319,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert not self.c.transferEnabled()
 
         with self.event_listener(self.c, self.state) as listener:
-            assert not self.transfer(tester.k1, tester.a2, tokens)
+            with self.assertRaises(TransactionFailed):
+                self.transfer(tester.k1, tester.a2, tokens)
             assert not listener.events
 
         # Funding has ended.
@@ -358,7 +362,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         with self.assertRaises(ContractCreationFailed):
             self.deploy_migration_contract(s_addr)
-        assert source.transferEnabled() is True
+        assert not source.transferEnabled()
         assert not source.finalized()
 
         # post funding

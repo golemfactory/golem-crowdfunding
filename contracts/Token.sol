@@ -20,9 +20,8 @@ contract GolemNetworkToken {
 
     uint256 fundingStartBlock;
     uint256 fundingEndBlock;
-    bool fundingComplete = false;
-    bool public targetMinReached = false;
-    bool public finalized = false;
+
+    bool fundingMode = true;
 
     address public golemFactory;
 
@@ -58,6 +57,49 @@ contract GolemNetworkToken {
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
     event Migrate(address indexed _from, address indexed _to, uint256 _value);
 
+    modifier inFundingActive {
+        if (!fundingMode) throw;
+        // FundingActive: b ≥ Start and b ≤ End and t < Max
+        if (block.number < fundingStartBlock ||
+            block.number > fundingEndBlock ||
+            totalTokens >= tokenCreationCap) throw;
+        _;
+    }
+
+    modifier inFundingFailure {
+        if (!fundingMode) throw;
+        // FundingFailure: b > End and t < Min
+        if (block.number <= fundingEndBlock ||
+            totalTokens >= tokenCreationMin) throw;
+        _;
+    }
+
+    modifier inFundingSuccess {
+        if (!fundingMode) throw;
+        // FundingSuccess: (b > End and t ≥ Min) or t ≥ Max
+        if ((block.number <= fundingEndBlock ||
+             totalTokens < tokenCreationMin) &&
+            totalTokens < tokenCreationCap) throw;
+        _;
+    }
+
+    modifier inOperational {
+        if (fundingMode) throw;
+        _;
+    }
+
+    modifier inNormal {
+        if (fundingMode) throw;
+        if (migrationAgent != 0) throw;
+        _;
+    }
+
+    modifier inMigration {
+        if (fundingMode) throw;
+        if (migrationAgent == 0) throw;
+        _;
+    }
+
     function GolemNetworkToken(address _golemFactory, uint256 _fundingStartBlock,
                                uint256 _fundingEndBlock) {
         golemFactory = _golemFactory;
@@ -65,9 +107,7 @@ contract GolemNetworkToken {
         fundingEndBlock = _fundingEndBlock;
     }
 
-    function transfer(address _to, uint256 _value) returns (bool success) {
-        if (!transferEnabled()) return false;
-        
+    function transfer(address _to, uint256 _value) inOperational returns (bool success) {
         var senderBalance = balances[msg.sender];
         if (senderBalance >= _value && _value > 0) {
             senderBalance -= _value;
@@ -89,8 +129,7 @@ contract GolemNetworkToken {
 
     // Token migration support:
 
-    function migrate(uint256 _value) {
-        if (migrationAgent == 0) throw;
+    function migrate(uint256 _value) inMigration external {
         if (_value == 0 || _value > balances[msg.sender]) throw;
 
         balances[msg.sender] -= _value;
@@ -100,59 +139,63 @@ contract GolemNetworkToken {
         Migrate(msg.sender, migrationAgent, _value);
     }
 
-    function setMigrationAgent(address _agent) external {
-        // Can't set agent if already set or funding isn't finalized
-        if (msg.sender != golemFactory || migrationAgent != 0 || !finalized) throw;
-        
+    function setMigrationAgent(address _agent) inNormal external {
+        if (msg.sender != golemFactory) throw;
+
         migrationAgent = _agent;
     }
 
     // Crowdfunding:
 
-    function fundingActive() returns (bool) {
-        // ensure false is returned if called after endblock
-        if (block.number > fundingEndBlock)
-            fundingComplete = true;
-        return block.number >= fundingStartBlock && block.number <= fundingEndBlock && (!targetMinReached || !fundingComplete);
+    function fundingActive() constant external returns (bool) {
+        // Copy of inFundingActive.
+        if (!fundingMode) return false;
+
+        // b ≥ Start and b ≤ End and t < Max
+        if (block.number < fundingStartBlock ||
+            block.number > fundingEndBlock ||
+            totalTokens >= tokenCreationCap) return false;
+        return true;
     }
 
-    function transferEnabled() constant returns (bool) {
-        return fundingComplete && targetMinReached;
+    function transferEnabled() constant external returns (bool) {
+        return !fundingMode;
     }
-    
+
     // Helper function to get number of tokens left during the funding.
-    function numberOfTokensLeft() constant returns (uint256) {
-        if (totalTokens >= tokenCreationCap || !fundingActive())
-            return 0;
+    function numberOfTokensLeft() constant external returns (uint256) {
+        if (!fundingMode) return 0;
+        if (block.number > fundingEndBlock) return 0;
         return tokenCreationCap - totalTokens;
     }
 
-    function changeGolemFactory(address _golemFactory) external {
-        if (finalized && msg.sender == golemFactory)
+    function targetMinReached() constant external returns (bool) {
+        // FIXME: Remove. It does not work in Migration state.
+        return totalTokens >= tokenCreationMin;
+    }
+
+    function finalized() constant external returns (bool) {
+        return !fundingMode;
+    }
+
+    function changeGolemFactory(address _golemFactory) inOperational external {
+        if (msg.sender == golemFactory)
             golemFactory = _golemFactory;
     }
 
     // Create tokens when funding is active
     // Update state when funding period lapses and/or min/max funding occurs
-    function() payable external {
-        // half if funding has concluded or empty value is sent
-        if (!fundingActive()) throw;
+    function() payable inFundingActive external {
         if (msg.value == 0) throw;
 
         // Do not create more than cap
         var numTokens = msg.value * tokenCreationRate;
-        if (numTokens > numberOfTokensLeft()) throw;
+        totalTokens += numTokens;
+        if (totalTokens > tokenCreationCap) throw;
 
         // Assign new tokens to the sender
         balances[msg.sender] += numTokens;
-        totalTokens += numTokens;
-        
-        if (totalTokens >= tokenCreationMin && !targetMinReached)
-            targetMinReached = true;
-        
-        if (totalTokens >= tokenCreationCap)
-            fundingComplete = true;
-        
+
         // Log token creation event
         Transfer(0, msg.sender, numTokens);
     }
@@ -162,8 +205,9 @@ contract GolemNetworkToken {
     // Create GNT for the golemFactory (representing the company)
     // Create GNT for the developers
     // Update GNT state (number of tokens)
-    function finalize() external {
-        if (fundingActive() || block.number <= fundingEndBlock || finalized) throw;
+    function finalize() inFundingSuccess external {
+        // Switch to Operational state. This is the only place this can happen.
+        fundingMode = false;
 
         // 1. Transfer ETH to the golemFactory address
         if (!golemFactory.send(this.balance)) throw;
@@ -193,19 +237,15 @@ contract GolemNetworkToken {
 
         // 4. Update GNT state (number of tokens)
         totalTokens += numAdditionalTokens;
-
-        finalized = true;
     }
-    
-    function refund() external {
-        if (fundingActive() || transferEnabled()) throw;
 
+    function refund() inFundingFailure external {
         var gntValue = balances[msg.sender];
         if (gntValue == 0) throw;
         balances[msg.sender] = 0;
         totalTokens -= gntValue;
-        
+
         var ethValue = gntValue / tokenCreationRate;
-        if (!msg.sender.send(ethValue)) throw;   
+        if (!msg.sender.send(ethValue)) throw;
     }
 }

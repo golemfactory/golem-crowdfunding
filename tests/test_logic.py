@@ -103,7 +103,8 @@ class Contract(GenericStateMachine, unittest.TestCase):
                 self.tokens[src] -= amount
                 self.tokens[dst] += amount
             else:
-                assert not self.m.c.transfer(tester.accounts[dst], amount, sender=tester.keys[src])
+                with self.assertRaises(TransactionFailed):
+                    self.m.c.transfer(tester.accounts[dst], amount, sender=tester.keys[src])
             return
 
 TestSet = Contract.TestCase
