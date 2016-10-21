@@ -1,6 +1,8 @@
 import math
 import random
 import unittest
+from collections import deque
+from contextlib import contextmanager
 from random import randint
 from os import urandom
 from ethereum import abi, tester
@@ -52,6 +54,36 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
     def monitor(self, addr, value=0):
         return self.Monitor(self.state, addr, value)
+
+    class EventListener:
+        def __init__(self, contract, state):
+            self.contract = contract
+            self.state = state
+            self.events = deque()
+
+        def hook(self):
+            self.state.block.log_listeners.append(self._listen)
+
+        def unhook(self):
+            listeners = self.state.block.log_listeners
+            if self._listen in listeners:
+                listeners.remove(self._listen)
+
+        def event(self, event_type, **params):
+            if self.events:
+                event = self.events.popleft()  # FIFO
+                type_matches = event["_event_type"] == event_type
+                return type_matches and all([event.get(n) == v for n, v in params.items()])
+
+        def _listen(self, event):
+            self.events.append(self.contract.translator.listen(event))
+
+    @contextmanager
+    def event_listener(self, abi_contract, state):
+        listener = self.EventListener(abi_contract, state)
+        listener.hook()
+        yield listener
+        listener.unhook()
 
     def setUp(self):
         self.state = tester.state()
@@ -269,34 +301,55 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # Create tokens to meet minimum funding
         tokens = self.c.tokenCreationMin()
         value = tokens / self.c.tokenCreationRate()
-        self.state.send(tester.k1, addr, value)
+
+        with self.event_listener(self.c, self.state) as listener:
+            self.state.send(tester.k1, addr, value)
+            assert listener.event('Transfer',
+                                  _value=tokens,
+                                  _to=tester.a1.encode('hex'),
+                                  _from='0' * 40)
+            assert not listener.events  # no more events
+
         assert self.balance_of(1) == tokens
 
-        # At this point a1 has GNT but cannot frasfer them.
+        # At this point a1 has GNT but cannot transfer them.
         assert not self.c.transferEnabled()
-        assert self.transfer(tester.k1, tester.a2, tokens) is False
+
+        with self.event_listener(self.c, self.state) as listener:
+            assert not self.transfer(tester.k1, tester.a2, tokens)
+            assert not listener.events
 
         # Funding has ended.
         self.state.mine(1)
         assert self.state.block.number is 2
         assert self.c.fundingActive() is False
         assert self.c.targetMinReached() is True
-        self.c.finalize()
 
+        self.c.finalize()
         assert self.c.transferEnabled()
-        assert self.transfer(tester.k1, tester.a2, tokens) is True
+
+        with self.event_listener(self.c, self.state) as listener:
+            assert self.transfer(tester.k1, tester.a2, tokens)
+            assert listener.event('Transfer',
+                                  _value=tokens,
+                                  _to=tester.a2.encode('hex'),
+                                  _from=tester.a1.encode('hex'))
+            assert not listener.events  # no more events
+
         assert self.balance_of(1) == 0
         assert self.balance_of(2) == tokens
 
     def test_migration(self):
         s_addr, _ = self.deploy_contract(tester.a9, 2, 2)
         source = self.c
-        eths = source.tokenCreationCap() / source.tokenCreationRate()
+
+        tokens = source.tokenCreationCap()
+        eths = tokens / source.tokenCreationRate()
 
         # pre funding
         self.state.mine(1)
         with self.assertRaises(ContractCreationFailed):
-            _1, _2 = self.deploy_migration_contract(s_addr)
+            self.deploy_migration_contract(s_addr)
         assert not source.finalized()
 
         # funding
@@ -304,25 +357,21 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.send(tester.k1, s_addr, eths)
 
         with self.assertRaises(ContractCreationFailed):
-            _1, _2 = self.deploy_migration_contract(s_addr)
+            self.deploy_migration_contract(s_addr)
         assert source.transferEnabled() is True
         assert not source.finalized()
-
-        creation_rate = source.tokenCreationRate()
-        value = eths * creation_rate
 
         # post funding
         self.state.mine(1)
 
         with self.assertRaises(ContractCreationFailed):
-            _1, _2 = self.deploy_migration_contract(s_addr)
+            self.deploy_migration_contract(s_addr)
 
         assert not source.finalized()
-        self._finalize_funding(s_addr, expected_supply=value)
+        self._finalize_funding(s_addr, expected_supply=tokens)
         assert source.finalized()
 
         # migration and target token contracts
-        # funding _should_ already be over (target amount of GNT)
         m_addr, _ = self.deploy_migration_contract(s_addr)
         t_addr, _ = self.deploy_target_contract(m_addr)
 
@@ -332,28 +381,41 @@ class GNTCrowdfundingTest(unittest.TestCase):
         source.setMigrationAgent(m_addr, sender=tester.k9)
         migration.setTargetToken(t_addr, sender=tester.k9)
 
-        assert source.balanceOf(tester.a1) == value
+        assert source.balanceOf(tester.a1) == tokens
         assert target.balanceOf(tester.a1) == 0
 
         with self.assertRaises(TransactionFailed):
             source.migrate(0, sender=tester.k1)
 
         with self.assertRaises(TransactionFailed):
-            source.migrate(value + 1, sender=tester.k1)
+            source.migrate(tokens + 1, sender=tester.k1)
+
+        with self.event_listener(self.c, self.state) as listener:
+            with self.assertRaises(TransactionFailed):
+                source.migrate(tokens, sender=tester.k2)
+            assert not listener.events
+
+        # migrate tokens
+        with self.event_listener(self.c, self.state) as listener:
+            source.migrate(tokens, sender=tester.k1)
+            assert listener.event('Transfer',
+                                  _value=tokens,
+                                  _from=m_addr.encode('hex'),
+                                  _to=tester.a1.encode('hex'))
+            assert listener.event('Migrate',
+                                  _value=tokens,
+                                  _from=tester.a1.encode('hex'),
+                                  _to=m_addr.encode('hex'))
+            assert not listener.events  # no more events
 
         with self.assertRaises(TransactionFailed):
-            source.migrate(value, sender=tester.k2)
-
-        source.migrate(value, sender=tester.k1)
-
-        with self.assertRaises(TransactionFailed):
-            source.migrate(value, sender=tester.k1)
+            source.migrate(tokens, sender=tester.k1)
 
         assert source.balanceOf(tester.a1) == 0
-        assert target.balanceOf(tester.a1) == value
+        assert target.balanceOf(tester.a1) == tokens
 
         with self.assertRaises(TransactionFailed):
-            source.migrate(value, sender=tester.k1)
+            source.migrate(tokens, sender=tester.k1)
 
         # finalize migration
         migration.finalizeMigration(sender=tester.k9)
