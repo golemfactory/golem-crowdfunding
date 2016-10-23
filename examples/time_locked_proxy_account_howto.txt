@@ -16,3 +16,7 @@ Crowdfunding process with proxy accounts:
 3. Create proxy account for each of the developers (make sure that each one knows the right address of the proxy account and knows how to call its methods) - - specify tim lock parameter according to the whitepaper.
 4. Add developers' addressess to the GNT contract (double check that all addresses are valid and test it).
 5. Deploy GNT contract providing the address of the Golem Factory proxy account as an input parameters along fundingStartBlock and fundingEndBlock according to the whitepaper.
+6. Enable proxy accounts by setting the GNT contract address in each of deployed proxy contracts (before that, no calls would be forwarded to the GNT contract)
+  a. Set the address of the GNT contract in the Golem Factory proxy account.
+  b. Set the address of the GNT contract in each of the dev's proxy accounts.
+  
