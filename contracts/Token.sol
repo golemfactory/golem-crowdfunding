@@ -58,6 +58,7 @@ contract GolemNetworkToken {
 
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
     event Migrate(address indexed _from, address indexed _to, uint256 _value);
+    event Refund(address indexed _from, uint256 _value);
 
     // Checks if in Funding Active state. Aborts transaction otherwise.
     modifier inFundingActive {
@@ -261,5 +262,6 @@ contract GolemNetworkToken {
 
         var ethValue = gntValue / tokenCreationRate;
         if (!msg.sender.send(ethValue)) throw;
+        Refund(msg.sender, ethValue);
     }
 }
