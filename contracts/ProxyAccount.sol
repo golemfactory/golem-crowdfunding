@@ -28,7 +28,12 @@ contract TimeLockedGNTProxyAccount {
         _;
     }
 
-    modifier notLocked {
+    modifier gntOnly {
+        if (msg.sender != gnt) throw;
+        _;
+    }
+   
+   modifier notLocked {
     	if (now < availableAfter) throw;
     	_;
     }
@@ -58,6 +63,12 @@ contract TimeLockedGNTProxyAccount {
     function migrate(uint256 _value) ownerOnly external {
         GolemNetworkToken(gnt).migrate(_value);
     }
+
+    
+    // Default function - do not allow any eth transfers to this contract
+    
+    function() {
+    }
 }
 
 
@@ -79,5 +90,11 @@ contract TimeLockedGolemFactoryProxyAccount is TimeLockedGNTProxyAccount {
 
     function setMigrationAgent(address _agent) ownerOnly external {
         GolemNetworkToken(gnt).setMigrationAgent(_agent);
+    }
+
+    // Default function - transfer everything to the owner by default, allow transfers from the GNT contract only  
+    
+    function() gntOnly payable {
+        if (!owner.send(this.balance)) throw;
     }
 }
