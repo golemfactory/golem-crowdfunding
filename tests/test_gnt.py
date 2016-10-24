@@ -7,7 +7,7 @@ from random import randint
 from os import urandom
 from ethereum import abi, tester
 from ethereum.tester import TransactionFailed, ContractCreationFailed
-from ethereum.utils import denoms
+from ethereum.utils import denoms, privtoaddr
 from rlp.utils import decode_hex
 
 tester.serpent = True  # tester tries to load serpent module, prevent that.
@@ -185,6 +185,54 @@ class GNTCrowdfundingTest(unittest.TestCase):
         print(costs)
         assert max(costs) <= 51646
         assert min(costs) >= 51518
+
+    def test_gas_for_migrate_all(self):
+        factory_key = urandom(32)
+        addr, _ = self.deploy_contract(privtoaddr(factory_key), 0, 1)
+        for i, k in enumerate(tester.keys):
+            v = random.randrange(15000 * denoms.ether, 85000 * denoms.ether)
+            self.state.send(k, addr, v)
+        self.state.mine(2)
+        self.c.finalize()
+        m_addr, _ = self.deploy_migration_contract(addr)
+        t_addr, _ = self.deploy_target_contract(m_addr)
+        self.c.setMigrationAgent(m_addr, sender=factory_key)
+        self.m.setTargetToken(t_addr, sender=tester.k9)
+        self.state.mine()
+        self.state.block.coinbase = urandom(20)
+        costs = []
+        for i, k in enumerate(tester.keys):
+            b = self.c.balanceOf(tester.accounts[i])
+            m = self.monitor(i)
+            self.c.migrate(b, sender=k)
+            costs.append(m.gas())
+        print(costs)
+        assert max(costs) <= 86489
+        assert min(costs) >= 56425
+
+    def test_gas_for_migrate_half(self):
+        factory_key = urandom(32)
+        addr, _ = self.deploy_contract(privtoaddr(factory_key), 0, 1)
+        for i, k in enumerate(tester.keys):
+            v = random.randrange(15000 * denoms.ether, 85000 * denoms.ether)
+            self.state.send(k, addr, v)
+        self.state.mine(2)
+        self.c.finalize()
+        m_addr, _ = self.deploy_migration_contract(addr)
+        t_addr, _ = self.deploy_target_contract(m_addr)
+        self.c.setMigrationAgent(m_addr, sender=factory_key)
+        self.m.setTargetToken(t_addr, sender=tester.k9)
+        self.state.mine()
+        self.state.block.coinbase = urandom(20)
+        costs = []
+        for i, k in enumerate(tester.keys):
+            b = self.c.balanceOf(tester.accounts[i])
+            m = self.monitor(i)
+            self.c.migrate(b / 2, sender=k)
+            costs.append(m.gas())
+        print(costs)
+        assert max(costs) <= 101489
+        assert min(costs) >= 71361
 
     def test_gas_for_refund(self):
         addr, _ = self.deploy_contract(urandom(20), 0, 1)
