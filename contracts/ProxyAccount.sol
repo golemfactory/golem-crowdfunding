@@ -21,7 +21,7 @@ contract TimeLockedGNTProxyAccount {
     address public gnt;
 
     // Modifiers
-	
+
     modifier ownerOnly {
         if (msg.sender != owner) throw;
         _;
@@ -30,8 +30,8 @@ contract TimeLockedGNTProxyAccount {
     modifier gntOnly {
         if (msg.sender != gnt) throw;
         _;
-    }
-   
+   }
+
    modifier notLocked {
     	if (now < availableAfter) throw;
     	_;
@@ -53,7 +53,6 @@ contract TimeLockedGNTProxyAccount {
     function transfer(address _to, uint256 _value) notLocked ownerOnly returns (bool success) {
         return GolemNetworkToken(gnt).transfer(_to, _value);
     }
-    
 
     // Migration interface
 
@@ -62,7 +61,7 @@ contract TimeLockedGNTProxyAccount {
     }
 
     // Default function - do not allow any eth transfers to this contract
-    
+
     function() {
     }
 }
