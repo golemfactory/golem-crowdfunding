@@ -20,7 +20,6 @@ contract TimeLockedGNTProxyAccount {
     uint256 public availableAfter;
     address public gnt;
 
-
     // Modifiers
 	
     modifier ownerOnly {
@@ -38,7 +37,6 @@ contract TimeLockedGNTProxyAccount {
     	_;
     }
 
-
     // Creation and initialization
 
     function TimeLockedGNTProxyAccount(uint256 _availableAter) {
@@ -49,7 +47,6 @@ contract TimeLockedGNTProxyAccount {
     function setGNTContract(address _gnt) ownerOnly external {
         gnt = _gnt;
     }
-
 
     // Token interface
 
@@ -64,7 +61,6 @@ contract TimeLockedGNTProxyAccount {
         GolemNetworkToken(gnt).migrate(_value);
     }
 
-    
     // Default function - do not allow any eth transfers to this contract
     
     function() {
@@ -79,13 +75,11 @@ contract TimeLockedGolemFactoryProxyAccount is TimeLockedGNTProxyAccount {
     function TimeLockedGolemFactoryProxyAccount(uint256 _availableAter) TimeLockedGNTProxyAccount(_availableAter) {
     }
     
-
     // Golem Factory privileged API
 
     function changeGolemFactory(address _golemFactory) ownerOnly external {
         GolemNetworkToken(gnt).changeGolemFactory(_golemFactory);
     }
-
     // Migration interface
 
     function setMigrationAgent(address _agent) ownerOnly external {
