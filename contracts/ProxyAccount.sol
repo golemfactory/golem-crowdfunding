@@ -17,7 +17,7 @@ contract TimeLockedGNTProxyAccount {
     }
 
     modifier gntOnly {
-        if (msg.sender != gnt) throw;
+        if (msg.sender != address(gnt)) throw;
         _;
    }
 
@@ -51,7 +51,8 @@ contract TimeLockedGNTProxyAccount {
 
     // Default function - do not allow any eth transfers to this contract
 
-    function() {
+    function() payable {
+        throw;
     }
 }
 
