@@ -168,10 +168,6 @@ contract GolemNetworkToken {
         return true;
     }
 
-    function transferEnabled() constant external returns (bool) {
-        return !fundingMode;
-    }
-
     // Helper function to get number of tokens left during the funding.
     function numberOfTokensLeft() constant external returns (uint256) {
         if (!fundingMode) return 0;

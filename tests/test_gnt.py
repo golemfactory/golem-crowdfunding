@@ -158,10 +158,10 @@ class GNTCrowdfundingTest(unittest.TestCase):
         founder = tester.accounts[4]
         addr, _ = self.deploy_contract(founder, 3, 13)
         assert self.state.block.number == 0
-        assert not self.c.transferEnabled()
+        assert not self.c.finalized()
         for _ in range(13):
             self.state.mine()
-            assert not self.c.transferEnabled()
+            assert not self.c.finalized()
         assert self.state.block.number == 13
 
         # ensure min funding met
@@ -171,27 +171,27 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         for _ in range(11):
             self.state.mine()
-            assert self.c.transferEnabled()
+            assert self.c.finalized()
 
     def test_transfer_enabled_after_max_fund_reached(self):
         founder = tester.accounts[2]
         addr, _ = self.deploy_contract(founder, 3, 7)
-        assert not self.c.transferEnabled()
+        assert not self.c.finalized()
         for _ in range(3):
             self.state.mine()
-            assert not self.c.transferEnabled()
+            assert not self.c.finalized()
 
         assert self.state.block.number is 3
         self.state.send(tester.keys[0], addr, 11)
-        assert not self.c.transferEnabled()
+        assert not self.c.finalized()
         self.state.send(tester.keys[1], addr, self.c.tokenCreationCap() / self.c.tokenCreationRate() - 11)
-        assert not self.c.transferEnabled()
+        assert not self.c.finalized()
         for _ in range(8):
             self.state.mine()
-            assert not self.c.transferEnabled()
+            assert not self.c.finalized()
         # Transfer is enabled after the funding is finalized.
         self.c.finalize(sender=tester.k5)
-        assert self.c.transferEnabled()
+        assert self.c.finalized()
 
     def test_total_supply(self):
         founder = tester.accounts[7]
@@ -316,7 +316,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.balance_of(1) == tokens
 
         # At this point a1 has GNT but cannot transfer them.
-        assert not self.c.transferEnabled()
+        assert not self.c.finalized()
 
         with self.event_listener(self.c, self.state) as listener:
             with self.assertRaises(TransactionFailed):
@@ -330,7 +330,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.c.targetMinReached() is True
 
         self.c.finalize()
-        assert self.c.transferEnabled()
+        assert self.c.finalized()
 
         with self.event_listener(self.c, self.state) as listener:
             assert self.transfer(tester.k1, tester.a2, tokens)
@@ -362,7 +362,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         with self.assertRaises(ContractCreationFailed):
             self.deploy_migration_contract(s_addr)
-        assert not source.transferEnabled()
+        assert not source.finalized()
         assert not source.finalized()
 
         # post funding
