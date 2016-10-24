@@ -159,7 +159,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         addr, _ = self.deploy_contract(urandom(20), 0, 100)
         costs = []
         for i, k in enumerate(tester.keys):
-            v = random.randrange(1 * denoms.ether, 85000 * denoms.ether)
+            v = random.randrange(1 * denoms.ether, 82000 * denoms.ether)
             m = self.monitor(i, v)
             self.state.send(k, addr, v)
             costs.append(m.gas())
@@ -170,7 +170,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
     def test_gas_for_transfer(self):
         addr, _ = self.deploy_contract(urandom(20), 0, 1)
         for i, k in enumerate(tester.keys):
-            v = random.randrange(15000 * denoms.ether, 85000 * denoms.ether)
+            v = random.randrange(15000 * denoms.ether, 82000 * denoms.ether)
             self.state.send(k, addr, v)
         self.state.mine(2)
         self.c.finalize()
@@ -190,7 +190,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         factory_key = urandom(32)
         addr, _ = self.deploy_contract(privtoaddr(factory_key), 0, 1)
         for i, k in enumerate(tester.keys):
-            v = random.randrange(15000 * denoms.ether, 85000 * denoms.ether)
+            v = random.randrange(15000 * denoms.ether, 82000 * denoms.ether)
             self.state.send(k, addr, v)
         self.state.mine(2)
         self.c.finalize()
@@ -214,7 +214,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         factory_key = urandom(32)
         addr, _ = self.deploy_contract(privtoaddr(factory_key), 0, 1)
         for i, k in enumerate(tester.keys):
-            v = random.randrange(15000 * denoms.ether, 85000 * denoms.ether)
+            v = random.randrange(15000 * denoms.ether, 82000 * denoms.ether)
             self.state.send(k, addr, v)
         self.state.mine(2)
         self.c.finalize()
