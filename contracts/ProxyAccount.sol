@@ -75,9 +75,14 @@ contract TimeLockedGolemFactoryProxyAccount is TimeLockedGNTProxyAccount {
         gnt.setMigrationAgent(_agent);
     }
 
-    // Default function - transfer everything to the owner by default, allow transfers from the GNT contract only  
+    // Default function - allow transfers from the GNT contract only  
     
     function() gntOnly payable {
+    }
+
+    // Withdraw - transfer ETH to to the Golem Factory
+    
+    function withdraw() ownerOnly {
         if (!owner.send(this.balance)) throw;
     }
 }
