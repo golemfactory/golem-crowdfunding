@@ -1,24 +1,13 @@
 pragma solidity ^0.4.1;
 
-
-contract GolemNetworkToken {
-
-    function transfer(address _to, uint256 _value) returns (bool success);
-    function balanceOf(address _owner) constant returns (uint256 balance);
-
-    function migrate(uint256 _value);
-    function setMigrationAgent(address _agent);
-
-    function changeGolemFactory(address _golemFactory);
-}
-
+import * as Source from "./Token.sol";
 
 contract TimeLockedGNTProxyAccount {
 
     address public owner;
 
     uint256 public availableAfter;
-    address public gnt;
+    Source.GolemNetworkToken public gnt;
 
     // Modifiers
 
@@ -45,19 +34,19 @@ contract TimeLockedGNTProxyAccount {
     }
 
     function setGNTContract(address _gnt) ownerOnly external {
-        gnt = _gnt;
+        gnt = Source.GolemNetworkToken(_gnt);
     }
 
     // Token interface
 
     function transfer(address _to, uint256 _value) notLocked ownerOnly returns (bool success) {
-        return GolemNetworkToken(gnt).transfer(_to, _value);
+        return gnt.transfer(_to, _value);
     }
 
     // Migration interface
 
     function migrate(uint256 _value) ownerOnly external {
-        GolemNetworkToken(gnt).migrate(_value);
+        gnt.migrate(_value);
     }
 
     // Default function - do not allow any eth transfers to this contract
@@ -77,12 +66,12 @@ contract TimeLockedGolemFactoryProxyAccount is TimeLockedGNTProxyAccount {
     // Golem Factory privileged API
 
     function changeGolemFactory(address _golemFactory) ownerOnly external {
-        GolemNetworkToken(gnt).changeGolemFactory(_golemFactory);
+        gnt.changeGolemFactory(_golemFactory);
     }
     // Migration interface
 
     function setMigrationAgent(address _agent) ownerOnly external {
-        GolemNetworkToken(gnt).setMigrationAgent(_agent);
+        gnt.setMigrationAgent(_agent);
     }
 
     // Default function - transfer everything to the owner by default, allow transfers from the GNT contract only  
