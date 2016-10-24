@@ -175,11 +175,6 @@ contract GolemNetworkToken {
         return tokenCreationCap - totalTokens;
     }
 
-    function targetMinReached() constant external returns (bool) {
-        // FIXME: Remove. It does not work in Migration state.
-        return totalTokens >= tokenCreationMin;
-    }
-
     function finalized() constant external returns (bool) {
         return !fundingMode;
     }

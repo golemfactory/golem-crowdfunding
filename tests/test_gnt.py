@@ -327,7 +327,6 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.mine(1)
         assert self.state.block.number is 2
         assert self.c.fundingActive() is False
-        assert self.c.targetMinReached() is True
 
         self.c.finalize()
         assert self.c.finalized()
@@ -664,7 +663,6 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.send(tester.k1, addr, value)
         assert self.c.totalSupply() == value * 1000
         self.state.mine(6)
-        assert not self.c.targetMinReached()
         b = self.state.block.get_balance(tester.a1)
         self.c.refund(sender=tester.k1)
         refund = self.state.block.get_balance(tester.a1) - b
@@ -685,7 +683,6 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.send(tester.k2, addr, 1)
         assert self.c.totalSupply() == 150000000 * denoms.ether
         self.state.mine(10)
-        assert self.c.targetMinReached()
         with self.assertRaises(TransactionFailed):
             self.c.refund(sender=tester.k1)
         with self.assertRaises(TransactionFailed):
