@@ -154,6 +154,56 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert decode_hex(self.c.golemFactory()) == founder
         assert not self.c.fundingActive()
 
+    def test_gas_for_create(self):
+        self.state.block.coinbase = urandom(20)
+        addr, _ = self.deploy_contract(urandom(20), 0, 100)
+        costs = []
+        for i, k in enumerate(tester.keys):
+            v = random.randrange(1 * denoms.ether, 85000 * denoms.ether)
+            m = self.monitor(i, v)
+            self.state.send(k, addr, v)
+            costs.append(m.gas())
+        print(costs)
+        assert max(costs) <= 63500
+        assert min(costs) >= 63500 - 15000
+
+    def test_gas_for_transfer(self):
+        addr, _ = self.deploy_contract(urandom(20), 0, 1)
+        for i, k in enumerate(tester.keys):
+            v = random.randrange(15000 * denoms.ether, 85000 * denoms.ether)
+            self.state.send(k, addr, v)
+        self.state.mine(2)
+        self.c.finalize()
+        self.state.mine()
+        self.state.block.coinbase = urandom(20)
+        costs = []
+        for i, k in enumerate(tester.keys):
+            v = random.randrange(1, 15000000 * denoms.ether)
+            m = self.monitor(i)
+            self.c.transfer(urandom(20), v, sender=k)
+            costs.append(m.gas())
+        print(costs)
+        assert max(costs) <= 51646
+        assert min(costs) >= 51518
+
+    def test_gas_for_refund(self):
+        addr, _ = self.deploy_contract(urandom(20), 0, 1)
+        for i, k in enumerate(tester.keys):
+            v = random.randrange(1 * denoms.ether, 15000 * denoms.ether)
+            self.state.send(k, addr, v)
+        self.state.mine(2)
+        self.state.block.coinbase = urandom(20)
+        costs = []
+        for i, k in enumerate(tester.keys):
+            b = self.c.balanceOf(tester.accounts[i])
+            m = self.monitor(i, -(b // 1000))
+            self.c.refund(sender=k)
+            costs.append(m.gas())
+        print(costs)
+        assert max(costs) <= 25616
+        assert min(costs) >= 20307
+
+
     def test_transfer_enabled_after_end_block(self):
         founder = tester.accounts[4]
         addr, _ = self.deploy_contract(founder, 3, 13)
