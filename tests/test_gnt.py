@@ -149,7 +149,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         founder = tester.accounts[2]
         c, g = self.deploy_contract(founder, 5, 105)
         assert len(c) == 20
-        assert g <= 1000000
+        assert g <= 900000
         assert self.contract_balance() == 0
         assert decode_hex(self.c.golemFactory()) == founder
         assert not self.c.fundingActive()
