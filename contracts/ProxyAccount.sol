@@ -58,7 +58,6 @@ contract TimeLockedGNTProxyAccount {
     function migrate(uint256 _value) ownerOnly external {
         GolemNetworkToken(gnt).migrate(_value);
     }
-
 }
 
 
@@ -81,5 +80,4 @@ contract TimeLockedGolemFactoryProxyAccount is TimeLockedGNTProxyAccount {
     function setMigrationAgent(address _agent) ownerOnly external {
         GolemNetworkToken(gnt).setMigrationAgent(_agent);
     }
-
 }
