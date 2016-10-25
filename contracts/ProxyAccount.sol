@@ -1,13 +1,13 @@
 pragma solidity ^0.4.1;
 
-import * as Source from "./Token.sol";
+import "./Token.sol";
 
 contract TimeLockedGNTProxyAccount {
 
     address public owner;
 
     uint256 public availableAfter;
-    Source.GolemNetworkToken public gnt;
+    GolemNetworkToken public gnt;
 
     // Modifiers
 
@@ -29,7 +29,7 @@ contract TimeLockedGNTProxyAccount {
     }
 
     function setGNTContract(address _gnt) ownerOnly external {
-        gnt = Source.GolemNetworkToken(_gnt);
+        gnt = GolemNetworkToken(_gnt);
     }
 
     // Token interface
