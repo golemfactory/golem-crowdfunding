@@ -1,4 +1,4 @@
-Each proxy account serves only as an intermediate layer between the GNT contract and predefined addresses (either developer's or the Golem Factory's address). Its purpose is to forward unconstrained requests directly to the GNT contract, enable/disable transfer requests according to the timelocking rules and (if allowed) forward transfers from the GNT contract to the address represented by the proxy contract (i.e. used when the finalize() method of the GNT contract is called). No other functionality related to the GNT contract is added.
+Each proxy account serves only as an intermediate layer between the GNT contract and predefined addresses (either developer's or the Golem Factory's address). Its purpose is to forward unconstrained requests directly to the GNT contract, enable/disable transfer requests according to the timelocking rules. No other functionality related to the GNT contract is added.
 
 Timelocked proxy accounts features:
   - locks transfer function for specified period of time
@@ -8,7 +8,7 @@ Timelocked proxy accounts features:
 Additional features of the Golem Factory proxy account:
   - allows change of the GolemFactory in the GNT contract according to the GNT specification
   - allows change of the migration agent in the GNT contract according to the GNT specification
-  - immediately forwards all ETH transfers from the GNT contract to the proxy contract straight to the multisig wallet controlled by the Golem Factory
+  - introduces withdraw method which can be called by the the Golem Factory multisig wallet to withdraw the ETH sent by GNT (finalize() call) to Golem Factory proxy account
 
 Crowdfunding process with proxy accounts:
 
