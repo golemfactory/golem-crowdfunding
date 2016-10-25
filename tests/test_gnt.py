@@ -460,7 +460,6 @@ class GNTCrowdfundingTest(unittest.TestCase):
         with self.assertRaises(ContractCreationFailed):
             self.deploy_migration_contract(s_addr)
         assert not source.finalized()
-        assert not source.finalized()
 
         # post funding
         self.state.mine(1)
