@@ -251,6 +251,18 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert max(costs) <= 25616
         assert min(costs) >= 20307
 
+    def test_gas_for_finalize(self):
+        addr, _ = self.deploy_contract(urandom(20), 0, 1)
+        for i, k in enumerate(tester.keys):
+            v = random.randrange(15000 * denoms.ether, 82000 * denoms.ether)
+            self.state.send(k, addr, v)
+        self.state.mine(2)
+        self.state.block.coinbase = urandom(20)
+        m = self.monitor(0)
+        self.c.finalize(sender=tester.k0)
+        g = m.gas()
+        assert g == 204926
+
 
     def test_transfer_enabled_after_end_block(self):
         founder = tester.accounts[4]
