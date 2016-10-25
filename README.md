@@ -2,9 +2,9 @@
 
 ## Testing
 
-Testing requires Python and 2 packages: pyetherem and py.test.
+Testing requires Python and following packages: pyetherem, py.test, hypothesis
 
-    pip install ethereum pytest
+    pip install ethereum pytest hypothesis
     
 To run tests:
 

@@ -1,15 +1,8 @@
-from hypothesis import strategies as st
-from hypothesis import given
-
 from hypothesis.stateful import GenericStateMachine
 from hypothesis.strategies import tuples, sampled_from, just, integers
+from hypothesis import settings as Settings
 
-import math
-import random
 import unittest
-# from unittest import assertRaises
-from random import randint
-from os import urandom
 from ethereum import abi, tester
 from ethereum.tester import TransactionFailed, ContractCreationFailed
 from ethereum.utils import denoms
@@ -78,7 +71,8 @@ class Contract(GenericStateMachine, unittest.TestCase):
                                                       sampled_from(range(len(tester.accounts))),
                                                       integers(min_value=2000)))
         finalize_st = tuples(just("finalize"), sampled_from(range(len(tester.keys))))
-        return mine_st | fund_st | transfer_st
+        refund_st = tuples(just("refund"), sampled_from(range(len(tester.keys))))
+        return mine_st | fund_st | transfer_st | finalize_st | refund_st
 
     def execute_step(self, step):
         n = self.m.state.block.number
@@ -89,7 +83,7 @@ class Contract(GenericStateMachine, unittest.TestCase):
             return
         if action == "fund":
             src, amount = params
-            if (n >= START) and (n <= FINISH) and (self.gathered <= MAXCAP) and (not self.finalized):
+            if n >= START and n <= FINISH and self.gathered <= MAXCAP and not self.finalized:
                 self.m.state.send(tester.keys[src], self.m.c_addr, amount)
                 self.tokens[src] += amount * TOKENCREATIONRATE
             else:
@@ -98,7 +92,7 @@ class Contract(GenericStateMachine, unittest.TestCase):
             return
         if action == "transfer":
             src, dst, amount = params
-            if ((n > FINISH) or (self.gathered == MAXCAP)) and (self.gathered >= MINCAP) and (self.tokens[src] >= amount):
+            if self.finalized and self.tokens[src] >= amount:
                 assert self.m.c.transfer(tester.accounts[dst], amount, sender=tester.keys[src])
                 self.tokens[src] -= amount
                 self.tokens[dst] += amount
@@ -106,5 +100,28 @@ class Contract(GenericStateMachine, unittest.TestCase):
                 with self.assertRaises(TransactionFailed):
                     self.m.c.transfer(tester.accounts[dst], amount, sender=tester.keys[src])
             return
+        if action == "finalize":
+            if (not self.finalized) and (self.gathered >= MINCAP or self.gathered == MAXCAP):
+                self.m.c.finalize(sender=tester.keys[params])
+                self.finalized = True
+                assert self.m.c.transferEnabled()
+            else:
+                with self.assertRaises(TransactionFailed):
+                    self.m.c.finalize(sender=tester.keys[params])
+            return
+        if action == "refund":
+            if not self.finalized and self.gathered < MINCAP \
+               and n > FINISH and self.tokens[params] > 0:
+                self.m.c.refund(sender=tester.keys[params])
+                self.tokens[params] = 0
+            else:
+                with self.assertRaises(TransactionFailed):
+                    self.m.c.refund(sender=tester.keys[params])
+            return
 
+Contract.TestCase.settings = Settings(Contract.TestCase.settings,
+                                      # max_examples=5,
+                                      # max_iterations=5,
+                                      max_shrinks=5000,
+                                      timeout=60)
 TestSet = Contract.TestCase
