@@ -1,4 +1,4 @@
-.PHONY: tests unit prop clean
+.PHONY: tests unit prop proxy clean
 
 tests: build
 	pytest tests
@@ -10,7 +10,7 @@ unit: build
 	pytest tests/test_gnt.py
 
 proxy: build
-    pytest tests/test_proxy.py
+	pytest tests/test_proxy.py
 
 build: tests/GolemNetworkToken.abi tests/GolemNetworkToken.bin tests/GNTTargetToken.bin tests/GNTTargetToken.abi tests/MigrationAgent.bin tests/MigrationAgent.abi tests/BadWallet.bin tests/BadWallet.abi tests/ProxyAccount.bin tests/ProxyAccount.abi tests/ProxyFactoryAccount.bin tests/ProxyFactoryAccount.abi
 
