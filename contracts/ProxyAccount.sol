@@ -16,12 +16,7 @@ contract TimeLockedGNTProxyAccount {
         _;
     }
 
-    modifier gntOnly {
-        if (msg.sender != address(gnt)) throw;
-        _;
-   }
-
-   modifier notLocked {
+    modifier notLocked {
     	if (now < availableAfter) throw;
     	_;
     }
@@ -64,6 +59,13 @@ contract TimeLockedGolemFactoryProxyAccount is TimeLockedGNTProxyAccount {
     function TimeLockedGolemFactoryProxyAccount(uint256 _availableAter) TimeLockedGNTProxyAccount(_availableAter) {
     }
     
+    // Modifiers
+    
+    modifier gntOnly {
+        if (msg.sender != address(gnt)) throw;
+        _;
+    }
+
     // Golem Factory privileged API
 
     function changeGolemFactory(address _golemFactory) ownerOnly external {
