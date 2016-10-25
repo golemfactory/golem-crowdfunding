@@ -1,15 +1,7 @@
-from hypothesis import strategies as st
-from hypothesis import given
-
 from hypothesis.stateful import GenericStateMachine
 from hypothesis.strategies import tuples, sampled_from, just, integers
 
-import math
-import random
 import unittest
-# from unittest import assertRaises
-from random import randint
-from os import urandom
 from ethereum import abi, tester
 from ethereum.tester import TransactionFailed, ContractCreationFailed
 from ethereum.utils import denoms
