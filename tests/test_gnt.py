@@ -184,7 +184,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
             costs.append(m.gas())
         print(costs)
         assert max(costs) <= 51470
-        assert min(costs) >= 51406
+        assert min(costs) >= 51342
 
     def test_gas_for_migrate_all(self):
         factory_key = urandom(32)
@@ -261,7 +261,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         m = self.monitor(0)
         self.c.finalize(sender=tester.k0)
         g = m.gas()
-        assert g == 207565
+        assert g == 207597
 
 
     def test_transfer_enabled_after_end_block(self):

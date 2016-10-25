@@ -9,8 +9,6 @@ contract GolemNetworkToken {
     string public constant symbol = "GNT";
     uint8 public constant decimals = 18;  // 18 decimal places, the same as ETH.
 
-    uint256 constant percentTokensGolemFactory = 12;
-    uint256 constant percentTokensDevelopers = 6;
     uint256 public constant tokenCreationRate = 1000;
 
     // The funding cap in weis.
@@ -217,6 +215,9 @@ contract GolemNetworkToken {
         // Invariants:
         // dev0Percent + dev1Percent + dev2Percent + dev3Percent + dev4Percent + dev5Percent = 100
         // dev0Percent > 0 && dev1Percent > 0 && dev2Percent > 0 && dev3Percent > 0 && dev4Percent > 0 && dev5Percent > 0
+
+        uint256 percentTokensGolemFactory = 12;
+        uint256 percentTokensDevelopers = 6;
 
         // List of developer addresses and their shares.
         // The sum of shares is 10000.
