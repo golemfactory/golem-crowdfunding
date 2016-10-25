@@ -30,7 +30,7 @@ class GNTContractHelper(object):
 
     def __init__(self, contract_file, regex=None):
         if not regex:
-            regex = ".*dev[0-9]+\s?=\s?(.*);.*"
+            regex = ".*constant dev[0-9]+\s?=\s?(.*);.*"
 
         self.regex = re.compile(regex)
         self.source = open(contract_file).read().rstrip()
