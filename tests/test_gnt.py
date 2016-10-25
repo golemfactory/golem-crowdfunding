@@ -828,7 +828,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.wallet.set_extra_work(1, sender=key)
         extra = 10 # 601 passes, 602 fails send
         value = 11000
-        self.wallet.set_extra_work(extra);
+        self.wallet.set_extra_work(extra)
         self.state.mine(1)
         initial_b = self.state.block.get_balance(wallet_addr)
         self.state.send(tester.keys[0], wallet_addr, value)
@@ -842,13 +842,13 @@ class GNTCrowdfundingTest(unittest.TestCase):
         key = tester.keys[9]
         wallet_addr, g0 = self.deploy_wallet(founder)
         c_addr = self.deploy_contract_on_wallet(wallet_addr, 1, 1)
-        value = 1 * denoms.szabo
+        value = int(self.c.tokenCreationMin() / self.c.tokenCreationRate())
         self.state.mine(1)
         self.state.send(tester.k1, c_addr, value)
         self.state.mine(3)
         extra = 0
-        self.wallet.set_extra_work(extra);
-        assert extra == self.wallet.get_extra_work();
+        self.wallet.set_extra_work(extra)
+        assert extra == self.wallet.get_extra_work()
         initial_b = self.state.block.get_balance(wallet_addr)
         self.wallet.finalize(c_addr, sender=key)
         self.state.mine(1)
@@ -861,7 +861,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         key = tester.keys[9]
         wallet_addr, g0 = self.deploy_wallet(founder)
         c_addr = self.deploy_contract_on_wallet(wallet_addr, 1, 1)
-        value = 1000 * denoms.ether
+        value = int(self.c.tokenCreationMin() / self.c.tokenCreationRate())
         self.state.mine(1)
         self.state.send(tester.k1, c_addr, value)
         self.state.mine(3)
@@ -869,8 +869,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # send executed from contract has hardcoded limit of gas (2300?)
         # which is so small that it's not enough to do anything except for receive ether
         extra = 1
-        self.wallet.set_extra_work(extra);
-        assert extra == self.wallet.get_extra_work();
+        self.wallet.set_extra_work(extra)
+        assert extra == self.wallet.get_extra_work()
         initial_cb = self.state.block.get_balance(c_addr)
         initial_wb = self.state.block.get_balance(wallet_addr)
         initial_fb = self.state.block.get_balance(founder)
@@ -886,8 +886,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert current_fb < initial_fb
         # check if first failed attempt does not lock Token contract indefinitely
         extra = 0
-        self.wallet.set_extra_work(extra);
-        assert extra == self.wallet.get_extra_work();
+        self.wallet.set_extra_work(extra)
+        assert extra == self.wallet.get_extra_work()
         initial_wb = self.state.block.get_balance(wallet_addr)
         self.wallet.finalize(c_addr, sender=key)
         self.state.mine(1)
