@@ -23,9 +23,9 @@ contract TimeLockedGNTProxyAccount {
 
     // Creation and initialization
 
-    function TimeLockedGNTProxyAccount(uint256 _availableAter) {
+    function TimeLockedGNTProxyAccount(uint256 _availableAfter) {
         owner = msg.sender;
-        availableAfter = _availableAter;
+        availableAfter = _availableAfter;
     }
 
     function setGNTContract(address _gnt) ownerOnly external {
@@ -56,7 +56,7 @@ contract TimeLockedGolemFactoryProxyAccount is TimeLockedGNTProxyAccount {
 
     // Creation and initialization
 
-    function TimeLockedGolemFactoryProxyAccount(uint256 _availableAter) TimeLockedGNTProxyAccount(_availableAter) {
+    function TimeLockedGolemFactoryProxyAccount(uint256 _availableAfter) TimeLockedGNTProxyAccount(_availableAfter) {
     }
     
     // Modifiers

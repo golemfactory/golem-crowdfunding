@@ -32,7 +32,7 @@ contract BadWallet {
     }
     
     function finalize(address _crowdfundingContract) {
-        Source.GolemNetworkToken(_crowdfundingContract).finalizeFunding();
+        Source.GolemNetworkToken(_crowdfundingContract).finalize();
     }
 
     /* trap function which will burn gas, causing send to fail */
