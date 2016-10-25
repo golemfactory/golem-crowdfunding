@@ -1,5 +1,6 @@
 from hypothesis.stateful import GenericStateMachine
 from hypothesis.strategies import tuples, sampled_from, just, integers
+from hypothesis import settings as Settings
 
 import unittest
 from ethereum import abi, tester
@@ -99,4 +100,8 @@ class Contract(GenericStateMachine, unittest.TestCase):
                     self.m.c.transfer(tester.accounts[dst], amount, sender=tester.keys[src])
             return
 
+Contract.TestCase.settings = Settings(Contract.TestCase.settings,
+                                      # max_examples=5,
+                                      # max_iterations=5,
+                                      timeout=60)
 TestSet = Contract.TestCase
