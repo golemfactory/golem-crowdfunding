@@ -149,7 +149,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         founder = tester.accounts[2]
         c, g = self.deploy_contract(founder, 5, 105)
         assert len(c) == 20
-        assert g <= 900000
+        assert g <= 954030
         assert self.contract_balance() == 0
         assert decode_hex(self.c.golemFactory()) == founder
         assert not self.c.fundingActive()
@@ -261,7 +261,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         m = self.monitor(0)
         self.c.finalize(sender=tester.k0)
         g = m.gas()
-        assert g == 207597
+        assert g == 556868
 
 
     def test_transfer_enabled_after_end_block(self):
@@ -672,7 +672,6 @@ class GNTCrowdfundingTest(unittest.TestCase):
         addr, _ = self.deploy_contract(tester.a9, 2, 2)
 
         # private properties ->
-        n_devs = 6
         ca_percent = 12
         devs_percent = 6
         sum_percent = ca_percent + devs_percent
@@ -711,8 +710,11 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.c.finalize()
 
         # verify values
-        dev_addrs = ['\0'*18 + decode_hex('de{:02}'.format(x)) for x in range(n_devs)]
-        dev_percent = [10, 10, 15, 20, 20, 25]
+        n_devs = 23
+        dev_addrs = ['\0'*18 + decode_hex('de{:02}'.format(x))
+                     for x in range(n_devs)]
+        dev_shares = [2500, 730, 730, 730, 730, 730, 630, 630, 630, 630, 310,
+                      153, 150, 100, 100, 100, 70, 70, 70, 70, 70, 42, 25]
 
         tokens_extra = total_tokens * sum_percent / (100 - sum_percent)
         tokens_ca = tokens_extra * ca_percent / sum_percent
@@ -722,7 +724,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         print "Extra tokens:\t{}".format(tokens_extra)
         print "CA tokens:\t {}".format(tokens_ca)
         print "Dev tokens:\t {}".format(tokens_devs)
-        print "Devs", dev_addrs, dev_percent
+        print "Devs", dev_addrs, dev_shares
 
         # aux verification sum
         ver_sum = 0
@@ -732,7 +734,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
             return val / (10 ** (magnitude - n))
 
         for i in xrange(n_devs):
-            expected = dev_percent[i] * tokens_devs / 100
+            expected = dev_shares[i] * tokens_devs / 10000
             ver_sum += expected
             err = error(expected)
             assert expected - err <= self.c.balanceOf(dev_addrs[i]) <= expected + err

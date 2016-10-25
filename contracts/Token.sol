@@ -222,12 +222,29 @@ contract GolemNetworkToken {
         // List of developer addresses and their shares.
         // The sum of shares is 10000.
         var devs = [
-            Dev(0xde00, 1000)
-            Dev(0xde01, 1000)
-            Dev(0xde02, 1500)
-            Dev(0xde03, 2000)
-            Dev(0xde04, 2000)
-            Dev(0xde05, 2500)
+            Dev(0xde00, 2500)
+            Dev(0xde01,  730)
+            Dev(0xde02,  730)
+            Dev(0xde03,  730)
+            Dev(0xde04,  730)
+            Dev(0xde05,  730)
+            Dev(0xde06,  630)
+            Dev(0xde07,  630)
+            Dev(0xde08,  630)
+            Dev(0xde09,  630)
+            Dev(0xde10,  310)
+            Dev(0xde11,  153)
+            Dev(0xde12,  150)
+            Dev(0xde13,  100)
+            Dev(0xde14,  100)
+            Dev(0xde15,  100)
+            Dev(0xde16,   70)
+            Dev(0xde17,   70)
+            Dev(0xde18,   70)
+            Dev(0xde19,   70)
+            Dev(0xde20,   70)
+            Dev(0xde21,   42)
+            Dev(0xde22,   25)
         ];
 
         var numAdditionalTokens =
