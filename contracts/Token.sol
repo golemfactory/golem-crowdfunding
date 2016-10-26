@@ -9,8 +9,6 @@ contract GolemNetworkToken {
     string public constant symbol = "GNT";
     uint8 public constant decimals = 18;  // 18 decimal places, the same as ETH.
 
-    uint256 constant percentTokensGolemFactory = 12;
-    uint256 constant percentTokensDevelopers = 6;
     uint256 public constant tokenCreationRate = 1000;
 
     // The funding cap in weis.
@@ -24,29 +22,6 @@ contract GolemNetworkToken {
     bool fundingMode = true;
 
     address public golemFactory;
-
-    // TODO: SET before THE CROWDFUNDING!
-    // Invariants:
-    // dev0Percent + dev1Percent + dev2Percent + dev3Percent + dev4Percent + dev5Percent = 100
-    // dev0Percent > 0 && dev1Percent > 0 && dev2Percent > 0 && dev3Percent > 0 && dev4Percent > 0 && dev5Percent > 0
-    // FIXME: array based approach can be used instead, provided that it is safe to use this Solidity feature
-    address public constant dev0 = 0xde00;
-    uint256 public constant dev0Percent = 10;
-
-    address public constant dev1 = 0xde01;
-    uint256 public constant dev1Percent = 10;
-
-    address public constant dev2 = 0xde02;
-    uint256 public constant dev2Percent = 15;
-
-    address public constant dev3 = 0xde03;
-    uint256 public constant dev3Percent = 20;
-
-    address public constant dev4 = 0xde04;
-    uint256 public constant dev4Percent = 20;
-
-    address public constant dev5 = 0xde05;
-    // uint256 public dev5Percent;  can be calculated as: 100 - dev0Percent - dev1Percent - dev2Percent - dev3Percent - dev4Percent
 
     // The currect total token supply.
     uint256 totalTokens;
@@ -213,36 +188,9 @@ contract GolemNetworkToken {
         // 1. Transfer ETH to the golemFactory address
         if (!golemFactory.send(this.balance)) throw;
 
-        // 2. Create GNT for the golemFactory (representing the company)
-        var numAdditionalTokens =
-            totalTokens * (percentTokensGolemFactory + percentTokensDevelopers) /
-            (100 - percentTokensGolemFactory - percentTokensDevelopers);
-        var numTokensForGolemAgent =
-            numAdditionalTokens * percentTokensGolemFactory /
-            (percentTokensGolemFactory + percentTokensDevelopers);
-
-        balances[golemFactory] += numTokensForGolemAgent;
-
-        // 3. Create GNT for the golemFactory (representing the company)
-        var numTokensForDevelpers  = numAdditionalTokens - numTokensForGolemAgent;
-
-        var dev0Tokens = dev0Percent * numTokensForDevelpers / 100;
-        var dev1Tokens = dev1Percent * numTokensForDevelpers / 100;
-        var dev2Tokens = dev2Percent * numTokensForDevelpers / 100;
-        var dev3Tokens = dev3Percent * numTokensForDevelpers / 100;
-        var dev4Tokens = dev4Percent * numTokensForDevelpers / 100;
-        var dev5Tokens = numTokensForDevelpers - dev0Tokens - dev1Tokens -
-                         dev2Tokens - dev3Tokens - dev4Tokens;
-
-        balances[dev0] += dev0Tokens;
-        balances[dev1] += dev1Tokens;
-        balances[dev2] += dev2Tokens;
-        balances[dev3] += dev3Tokens;
-        balances[dev4] += dev4Tokens;
-        balances[dev5] += dev5Tokens;
-
-        // 4. Update GNT state (number of tokens)
-        totalTokens += numAdditionalTokens;
+        // Create additional GNT for the Factory (representing the company)
+        // and developers.
+        createAdditionalTokens();
     }
 
     function refund() inFundingFailure external {
@@ -254,5 +202,73 @@ contract GolemNetworkToken {
         var ethValue = gntValue / tokenCreationRate;
         if (!msg.sender.send(ethValue)) throw;
         Refund(msg.sender, ethValue);
+    }
+
+    struct Dev {
+        address addr;
+        uint share;
+    }
+
+    // Creates additional 12% of tokens for the Factory and 6% for developers.
+    function createAdditionalTokens() internal {
+        // TODO: SET before THE CROWDFUNDING!
+        // Invariants:
+        // dev0Percent + dev1Percent + dev2Percent + dev3Percent + dev4Percent + dev5Percent = 100
+        // dev0Percent > 0 && dev1Percent > 0 && dev2Percent > 0 && dev3Percent > 0 && dev4Percent > 0 && dev5Percent > 0
+
+        uint256 percentTokensGolemFactory = 12;
+        uint256 percentTokensDevelopers = 6;
+
+        // List of developer addresses and their shares.
+        // The sum of shares is 10000.
+        var devs = [
+            Dev(0xde00, 2500)
+            Dev(0xde01,  730)
+            Dev(0xde02,  730)
+            Dev(0xde03,  730)
+            Dev(0xde04,  730)
+            Dev(0xde05,  730)
+            Dev(0xde06,  630)
+            Dev(0xde07,  630)
+            Dev(0xde08,  630)
+            Dev(0xde09,  630)
+            Dev(0xde10,  310)
+            Dev(0xde11,  153)
+            Dev(0xde12,  150)
+            Dev(0xde13,  100)
+            Dev(0xde14,  100)
+            Dev(0xde15,  100)
+            Dev(0xde16,   70)
+            Dev(0xde17,   70)
+            Dev(0xde18,   70)
+            Dev(0xde19,   70)
+            Dev(0xde20,   70)
+            Dev(0xde21,   42)
+            Dev(0xde22,   25)
+        ];
+
+        var numAdditionalTokens =
+            totalTokens * (percentTokensGolemFactory + percentTokensDevelopers) /
+            (100 - percentTokensGolemFactory - percentTokensDevelopers);
+        var numTokensForGolemFactory =
+            numAdditionalTokens * percentTokensGolemFactory /
+            (percentTokensGolemFactory + percentTokensDevelopers);
+
+        balances[golemFactory] += numTokensForGolemFactory;
+
+        var numTokensForDevs  = numAdditionalTokens - numTokensForGolemFactory;
+
+        var last = devs.length - 1;
+        uint256 numTokensAssigned = 0;
+        for (uint256 i = 0; i < last; ++i) {
+            var dev = devs[i];
+            var n = dev.share * numTokensForDevs / 10000;
+            numTokensAssigned += n;
+            balances[dev.addr] += n;
+        }
+        balances[devs[last].addr] += (numTokensForDevs - numTokensAssigned);
+
+        // Update GNT state (number of tokens)
+        totalTokens += numAdditionalTokens;
     }
 }
