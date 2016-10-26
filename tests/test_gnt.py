@@ -756,6 +756,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
                                        _to=dev_addrs[i].encode('hex'),
                                        _value=balance)
 
+        assert not self.listener.events  # no more events
+
         err = error(ver_sum)
         assert ver_sum - err <= tokens_devs <= ver_sum + err
 
