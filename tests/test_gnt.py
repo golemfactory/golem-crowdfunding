@@ -149,7 +149,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         founder = tester.accounts[2]
         c, g = self.deploy_contract(founder, 5, 105)
         assert len(c) == 20
-        assert g <= 954030
+        assert g <= 999659
         assert self.contract_balance() == 0
         assert decode_hex(self.c.golemFactory()) == founder
         assert not self.c.fundingActive()
@@ -164,8 +164,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.state.send(k, addr, v)
             costs.append(m.gas())
         print(costs)
-        assert max(costs) == 63497
-        assert min(costs) == 63497 - 15000
+        assert max(costs) == 63533
+        assert min(costs) == 63533 - 15000
 
     def test_gas_for_transfer(self):
         addr, _ = self.deploy_contract(urandom(20), 0, 1)
@@ -183,8 +183,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.c.transfer(urandom(20), v, sender=k)
             costs.append(m.gas())
         print(costs)
-        assert max(costs) <= 51470
-        assert min(costs) >= 51342
+        assert max(costs) <= 51503
+        assert min(costs) >= 51375
 
     def test_gas_for_migrate_all(self):
         factory_key = urandom(32)
@@ -261,8 +261,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         m = self.monitor(0)
         self.c.finalize(sender=tester.k0)
         g = m.gas()
-        assert g == 556868
-
+        assert g == 602248
 
     def test_transfer_enabled_after_end_block(self):
         founder = tester.accounts[4]
@@ -675,6 +674,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         ca_percent = 12
         devs_percent = 6
         sum_percent = ca_percent + devs_percent
+        n_devs = 23
         # <- private properties
 
         ca = self.c.golemFactory()
@@ -705,12 +705,17 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert total_tokens == sum(eths) * creation_rate
 
         # finalize
-        self.c.finalize()
+        with self.event_listener(self.c, self.state) as listener:
+            self.c.finalize()
+            self.listener = listener
+
         with self.assertRaises(TransactionFailed):
             self.c.finalize()
 
+        assert len(self.listener.events) == n_devs + 1
+
         # verify values
-        n_devs = 23
+        zero_addr = '0' * 40
         dev_addrs = ['\0'*18 + decode_hex('de{:02}'.format(x))
                      for x in range(n_devs)]
         dev_shares = [2500, 730, 730, 730, 730, 730, 630, 630, 630, 630, 310,
@@ -719,12 +724,19 @@ class GNTCrowdfundingTest(unittest.TestCase):
         tokens_extra = total_tokens * sum_percent / (100 - sum_percent)
         tokens_ca = tokens_extra * ca_percent / sum_percent
         tokens_devs = tokens_extra - tokens_ca
+        ca_balance = self.c.balanceOf(ca)
 
         print "Total tokens:\t{}".format(total_tokens)
         print "Extra tokens:\t{}".format(tokens_extra)
         print "CA tokens:\t {}".format(tokens_ca)
         print "Dev tokens:\t {}".format(tokens_devs)
         print "Devs", dev_addrs, dev_shares
+
+        assert ca_balance == tokens_ca
+        assert self.listener.event('Transfer',
+                                   _from=zero_addr,
+                                   _to=ca,
+                                   _value=ca_balance)
 
         # aux verification sum
         ver_sum = 0
@@ -735,15 +747,19 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         for i in xrange(n_devs):
             expected = dev_shares[i] * tokens_devs / 10000
+            balance = self.c.balanceOf(dev_addrs[i])
             ver_sum += expected
             err = error(expected)
-            assert expected - err <= self.c.balanceOf(dev_addrs[i]) <= expected + err
+            assert expected - err <= balance <= expected + err
+            assert self.listener.event('Transfer',
+                                       _from=zero_addr,
+                                       _to=dev_addrs[i].encode('hex'),
+                                       _value=balance)
+
+        assert not self.listener.events  # no more events
 
         err = error(ver_sum)
         assert ver_sum - err <= tokens_devs <= ver_sum + err
-
-        ca_balance = self.c.balanceOf(ca)
-        assert ca_balance == tokens_ca
 
         ver_sum += ca_balance
         err = error(ver_sum)
@@ -764,7 +780,15 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.c.totalSupply() == value * 1000
         self.state.mine(6)
         b = self.state.block.get_balance(tester.a1)
-        self.c.refund(sender=tester.k1)
+
+        with self.event_listener(self.c, self.state) as listener:
+            self.c.refund(sender=tester.k1)
+
+            assert listener.event('Refund',
+                                  _from=tester.a1.encode('hex'),
+                                  _value=value)
+            assert not listener.events  # no more events
+
         refund = self.state.block.get_balance(tester.a1) - b
         assert refund > value * 0.9999999999999999
 
