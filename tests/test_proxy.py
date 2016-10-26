@@ -30,7 +30,7 @@ class GNTContractHelper(object):
 
     def __init__(self, contract_file, regex=None):
         if not regex:
-            regex = ".*constant dev[0-9]+\s?=\s?(.*);.*"
+            regex = "\s*Dev\(([a-zA-Z0-9]+)\s?,.*"
 
         self.regex = re.compile(regex)
         self.source = open(contract_file).read().rstrip()
@@ -391,9 +391,9 @@ class GNTContractHelperTest(unittest.TestCase):
         contract_obj = GNTContractHelper(GNT_CONTRACT_PATH)
         contract_src = contract_obj.source
 
-        assert contract_obj.findall() == ['0xde00', '0xde01', '0xde02', '0xde03', '0xde04', '0xde05']
+        assert contract_obj.findall()[:6] == ['0xde00', '0xde01', '0xde02', '0xde03', '0xde04', '0xde05']
         contract_obj.sub(['0xad00', '0xad01', '0xad02'])
-        assert contract_obj.findall() == ['0xad00', '0xad01', '0xad02', '0xde03', '0xde04', '0xde05']
+        assert contract_obj.findall()[:6] == ['0xad00', '0xad01', '0xad02', '0xde03', '0xde04', '0xde05']
 
         state = tester.state()
         contract = state.abi_contract(contract_src, language='solidity', sender=tester.k0)
