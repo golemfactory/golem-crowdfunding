@@ -250,19 +250,13 @@ contract GolemNetworkToken {
         var numAdditionalTokens =
             totalTokens * (percentTokensGolemFactory + percentTokensDevelopers) /
             (100 - percentTokensGolemFactory - percentTokensDevelopers);
-        var numTokensForGolemFactory =
-            numAdditionalTokens * percentTokensGolemFactory /
+        var numTokensForDevs =
+            numAdditionalTokens * percentTokensDevelopers /
             (percentTokensGolemFactory + percentTokensDevelopers);
 
-        balances[golemFactory] += numTokensForGolemFactory;
-        // Log token creation event for golemFactory
-        Transfer(0, golemFactory, numTokensForGolemFactory);
-
-        var numTokensForDevs  = numAdditionalTokens - numTokensForGolemFactory;
-
-        var last = devs.length - 1;
         uint256 numTokensAssigned = 0;
-        for (uint256 i = 0; i < last; ++i) {
+        var len = devs.length;
+        for (uint256 i = 0; i < len; ++i) {
             var dev = devs[i];
             var n = dev.share * numTokensForDevs / 10000;
             numTokensAssigned += n;
@@ -271,10 +265,10 @@ contract GolemNetworkToken {
             Transfer(0, dev.addr, n);
         }
 
-        uint256 numTokensForLastDev = numTokensForDevs - numTokensAssigned;
-        balances[devs[last].addr] += numTokensForLastDev;
-        // Log token creation event for the last developer
-        Transfer(0, devs[last].addr, numTokensForLastDev);
+        var numTokensForGolemFactory = numAdditionalTokens - numTokensAssigned;
+        balances[golemFactory] += numTokensForGolemFactory;
+        // Log token creation event for golemFactory
+        Transfer(0, golemFactory, numTokensForGolemFactory);
 
         // Update GNT state (number of tokens)
         totalTokens += numAdditionalTokens;

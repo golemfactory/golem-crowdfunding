@@ -261,7 +261,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         m = self.monitor(0)
         self.c.finalize(sender=tester.k0)
         g = m.gas()
-        assert g == 602248
+        assert g == 602278
 
     def test_transfer_enabled_after_end_block(self):
         founder = tester.accounts[4]
@@ -732,16 +732,10 @@ class GNTCrowdfundingTest(unittest.TestCase):
         print "Dev tokens:\t {}".format(tokens_devs)
         print "Devs", dev_addrs, dev_shares
 
-        assert ca_balance == tokens_ca
-        assert self.listener.event('Transfer',
-                                   _from=zero_addr,
-                                   _to=ca,
-                                   _value=ca_balance)
-
         # aux verification sum
         ver_sum = 0
 
-        def error(val, n=3):
+        def error(val, n=2):
             magnitude = int(math.log10(val))
             return val / (10 ** (magnitude - n))
 
@@ -756,6 +750,13 @@ class GNTCrowdfundingTest(unittest.TestCase):
                                        _to=dev_addrs[i].encode('hex'),
                                        _value=balance)
 
+        err = error(tokens_ca, n=3)
+        assert tokens_ca <= ca_balance <= tokens_ca + err
+
+        assert self.listener.event('Transfer',
+                                   _from=zero_addr,
+                                   _to=ca,
+                                   _value=ca_balance)
         assert not self.listener.events  # no more events
 
         err = error(ver_sum)
