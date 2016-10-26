@@ -149,7 +149,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         founder = tester.accounts[2]
         c, g = self.deploy_contract(founder, 5, 105)
         assert len(c) == 20
-        assert g <= 900000
+        assert g <= 954030
         assert self.contract_balance() == 0
         assert decode_hex(self.c.golemFactory()) == founder
         assert not self.c.fundingActive()
@@ -164,8 +164,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.state.send(k, addr, v)
             costs.append(m.gas())
         print(costs)
-        assert max(costs) <= 63500
-        assert min(costs) >= 63500 - 15000
+        assert max(costs) == 63497
+        assert min(costs) == 63497 - 15000
 
     def test_gas_for_transfer(self):
         addr, _ = self.deploy_contract(urandom(20), 0, 1)
@@ -183,8 +183,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.c.transfer(urandom(20), v, sender=k)
             costs.append(m.gas())
         print(costs)
-        assert max(costs) <= 51646
-        assert min(costs) >= 51518
+        assert max(costs) <= 51470
+        assert min(costs) >= 51342
 
     def test_gas_for_migrate_all(self):
         factory_key = urandom(32)
@@ -207,8 +207,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.c.migrate(b, sender=k)
             costs.append(m.gas())
         print(costs)
-        assert max(costs) <= 86489
-        assert min(costs) >= 56425
+        assert max(costs) <= 86313
+        assert min(costs) >= 56246
 
     def test_gas_for_migrate_half(self):
         factory_key = urandom(32)
@@ -231,8 +231,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.c.migrate(b / 2, sender=k)
             costs.append(m.gas())
         print(costs)
-        assert max(costs) <= 101489
-        assert min(costs) >= 71361
+        assert max(costs) <= 101313
+        assert min(costs) >= 71185
 
     def test_gas_for_refund(self):
         addr, _ = self.deploy_contract(urandom(20), 0, 1)
@@ -248,8 +248,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.c.refund(sender=k)
             costs.append(m.gas())
         print(costs)
-        assert max(costs) <= 25616
-        assert min(costs) >= 20307
+        assert max(costs) <= 25526
+        assert min(costs) >= 20263
 
     def test_gas_for_finalize(self):
         addr, _ = self.deploy_contract(urandom(20), 0, 1)
@@ -261,7 +261,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         m = self.monitor(0)
         self.c.finalize(sender=tester.k0)
         g = m.gas()
-        assert g == 204926
+        assert g == 556868
 
 
     def test_transfer_enabled_after_end_block(self):
@@ -672,7 +672,6 @@ class GNTCrowdfundingTest(unittest.TestCase):
         addr, _ = self.deploy_contract(tester.a9, 2, 2)
 
         # private properties ->
-        n_devs = 6
         ca_percent = 12
         devs_percent = 6
         sum_percent = ca_percent + devs_percent
@@ -711,19 +710,11 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.c.finalize()
 
         # verify values
-        dev_addrs = []
-        for i in xrange(n_devs):
-            method = getattr(self.c, 'dev{}'.format(i))
-            dev_addrs.append(method())
-
-        dev_percent = []
-        for i in xrange(n_devs - 1):
-            method = getattr(self.c, 'dev{}Percent'.format(i))
-            dev_percent.append(method())
-
-        last_dev_percent = 100 - sum(dev_percent)
-        assert last_dev_percent > 0
-        dev_percent.append(last_dev_percent)
+        n_devs = 23
+        dev_addrs = ['\0'*18 + decode_hex('de{:02}'.format(x))
+                     for x in range(n_devs)]
+        dev_shares = [2500, 730, 730, 730, 730, 730, 630, 630, 630, 630, 310,
+                      153, 150, 100, 100, 100, 70, 70, 70, 70, 70, 42, 25]
 
         tokens_extra = total_tokens * sum_percent / (100 - sum_percent)
         tokens_ca = tokens_extra * ca_percent / sum_percent
@@ -733,7 +724,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         print "Extra tokens:\t{}".format(tokens_extra)
         print "CA tokens:\t {}".format(tokens_ca)
         print "Dev tokens:\t {}".format(tokens_devs)
-        print "Devs", dev_addrs, dev_percent
+        print "Devs", dev_addrs, dev_shares
 
         # aux verification sum
         ver_sum = 0
@@ -743,7 +734,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
             return val / (10 ** (magnitude - n))
 
         for i in xrange(n_devs):
-            expected = dev_percent[i] * tokens_devs / 100
+            expected = dev_shares[i] * tokens_devs / 10000
             ver_sum += expected
             err = error(expected)
             assert expected - err <= self.c.balanceOf(dev_addrs[i]) <= expected + err
