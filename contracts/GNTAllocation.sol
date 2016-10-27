@@ -6,7 +6,7 @@ contract GNTAllocation {
     mapping (address => uint256) allocations;
     uint256 constant DIVISOR = 1000000;
 
-    address gnt;
+    GolemNetworkToken gnt;
     uint256 unlockedAt;
 
     uint256 tokensCreated = 0;
@@ -15,8 +15,8 @@ contract GNTAllocation {
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
 
     function GNTAllocation(address _golemFactory) internal {
-        gnt = msg.sender;
-        unlockedAt = now + 658800;
+        gnt = GolemNetworkToken(msg.sender);
+        unlockedAt = now + 6 * 30 days;
 
         // reserved for factory
         allocations[_golemFactory] = 120000; // 12 * DIVISOR / 100
@@ -48,7 +48,7 @@ contract GNTAllocation {
     }
 
     function allocate(uint256 _tokensCreated) external {
-        if (msg.sender != gnt) throw;
+        if (msg.sender != address(gnt)) throw;
 
         tokensCreated = _tokensCreated;
         tokensRemaining = _tokensCreated;
@@ -67,7 +67,7 @@ contract GNTAllocation {
             // account for rounding (only last developer to pull tokens will be affected)
             toTransfer = toTransfer > tokensRemaining ? tokensRemaining : toTransfer;
             tokensRemaining -= toTransfer;
-            GolemNetworkToken(gnt).transfer(_to, toTransfer);
+            gnt.transfer(_to, toTransfer);
             Transfer(msg.sender, _to, toTransfer);
             return true;
         }
