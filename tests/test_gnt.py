@@ -96,7 +96,7 @@ class ContractHelper(object):
         return '0x' + addr.encode('hex')
 
 
-def deploy_gnt(state, founder, dev_addresses, start, end, creator_idx=9):
+def deploy_gnt(state, factory, dev_addresses, start, end, creator_idx=9):
     alloc_helper = ContractHelper(ALLOC_CONTRACT_PATH)
     # remove import
     alloc_helper.sub([''], regex=IMPORT_TOKEN_REGEX)
@@ -113,7 +113,7 @@ def deploy_gnt(state, founder, dev_addresses, start, end, creator_idx=9):
         contract = state.abi_contract(gnt_helper.source,
                                       language='solidity',
                                       sender=tester.keys[creator_idx],
-                                      constructor_parameters=(founder, start, end))
+                                      constructor_parameters=(factory, factory, start, end))
 
     return contract, contract.address, state.block.gas_used - gas_before
 
