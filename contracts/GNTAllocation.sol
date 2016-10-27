@@ -20,29 +20,30 @@ contract GNTAllocation {
         allocations[_golemFactory] = 120000; // 12 * DIVISOR / 100
 
         // developers
-        allocations[0xde00] = 15000; // 6 * DIVISOR / 100 * 25 / 100
-        allocations[0xde01] =  4380; // 6 * DIVISOR / 100 * 7.3 / 100
-        allocations[0xde02] =  4380; // 6 * DIVISOR / 100 * 7.3 / 100
-        allocations[0xde03] =  4380; // 6 * DIVISOR / 100 * 7.3 / 100
-        allocations[0xde04] =  4380; // 6 * DIVISOR / 100 * 7.3 / 100
-        allocations[0xde05] =  4380; // 6 * DIVISOR / 100 * 7.3 / 100
-        allocations[0xde06] =  3780; // 6 * DIVISOR / 100 * 6.3 / 100
-        allocations[0xde07] =  3780; // 6 * DIVISOR / 100 * 6.3 / 100
-        allocations[0xde08] =  3780; // 6 * DIVISOR / 100 * 6.3 / 100
-        allocations[0xde09] =  3780; // 6 * DIVISOR / 100 * 6.3 / 100
-        allocations[0xde10] =  1860; // 6 * DIVISOR / 100 * 3.1 / 100
-        allocations[0xde11] =   918; // 6 * DIVISOR / 100 * 1.53 / 100
-        allocations[0xde12] =   900; // 6 * DIVISOR / 100 * 1.5 / 100
-        allocations[0xde13] =   600; // 6 * DIVISOR / 100 * 1 / 100
-        allocations[0xde14] =   600; // 6 * DIVISOR / 100 * 1 / 100
-        allocations[0xde15] =   600; // 6 * DIVISOR / 100 * 1 / 100
-        allocations[0xde16] =   420; // 6 * DIVISOR / 100 * 0.7 / 100
-        allocations[0xde17] =   420; // 6 * DIVISOR / 100 * 0.7 / 100
-        allocations[0xde18] =   420; // 6 * DIVISOR / 100 * 0.7 / 100
-        allocations[0xde19] =   420; // 6 * DIVISOR / 100 * 0.7 / 100
-        allocations[0xde20] =   420; // 6 * DIVISOR / 100 * 0.7 / 100
-        allocations[0xde21] =   252; // 6 * DIVISOR / 100 * 0.42 / 100
-        allocations[0xde22] =   150; // 6 * DIVISOR / 100 * 0.25 / 100
+        // 6/18 = 1/3
+        allocations[0xde00] = 83333; // DIVISOR / 3 * 25 / 100
+        allocations[0xde01] = 24333; // DIVISOR / 3 * 7.3 / 100
+        allocations[0xde02] = 24333; // DIVISOR / 3 * 7.3 / 100
+        allocations[0xde03] = 24333; // DIVISOR / 3 * 7.3 / 100
+        allocations[0xde04] = 24333; // DIVISOR / 3 * 7.3 / 100
+        allocations[0xde05] = 24333; // DIVISOR / 3 * 7.3 / 100
+        allocations[0xde06] = 20999; // DIVISOR / 3 * 6.3 / 100
+        allocations[0xde07] = 20999; // DIVISOR / 3 * 6.3 / 100
+        allocations[0xde08] = 20999; // DIVISOR / 3 * 6.3 / 100
+        allocations[0xde09] = 20999; // DIVISOR / 3 * 6.3 / 100
+        allocations[0xde10] = 10333; // DIVISOR / 3 * 3.1 / 100
+        allocations[0xde11] =  5099; // DIVISOR / 3 * 1.53 / 100
+        allocations[0xde12] =  4999; // DIVISOR / 3 * 1.5 / 100
+        allocations[0xde13] =  3333; // DIVISOR / 3 * 1 / 100
+        allocations[0xde14] =  3333; // DIVISOR / 3 * 1 / 100
+        allocations[0xde15] =  3333; // DIVISOR / 3 * 1 / 100
+        allocations[0xde16] =  2333; // DIVISOR / 3 * 0.7 / 100
+        allocations[0xde17] =  2333; // DIVISOR / 3 * 0.7 / 100
+        allocations[0xde18] =  2333; // DIVISOR / 3 * 0.7 / 100
+        allocations[0xde19] =  2333; // DIVISOR / 3 * 0.7 / 100
+        allocations[0xde20] =  2333; // DIVISOR / 3 * 0.7 / 100
+        allocations[0xde21] =  1399; // DIVISOR / 3 * 0.42 / 100
+        allocations[0xde22] =   833; // DIVISOR / 3 * 0.25 / 100
     }
 
     // FIXME: Rename to something like "notifyFundingFinalized()"?

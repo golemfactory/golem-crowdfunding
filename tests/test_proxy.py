@@ -1,13 +1,13 @@
 import os
-import re
 import unittest
-from contextlib import contextmanager
 
 from ethereum import abi
 from ethereum import tester
 from ethereum.tester import TransactionFailed
 from ethereum.utils import denoms
 from rlp.utils_py2 import decode_hex
+
+from test_gnt import ContractHelper, deploy_gnt
 
 GNT_CONTRACT_PATH = os.path.join('contracts', 'Token.sol')
 ALLOC_CONTRACT_PATH = os.path.join('contracts', 'GNTAllocation.sol')
@@ -29,57 +29,6 @@ TARGET_INIT = decode_hex(open('tests/GNTTargetToken.bin', 'r').read().rstrip())
 TARGET_ABI = open('tests/GNTTargetToken.abi', 'r').read()
 
 
-@contextmanager
-def work_dir_context(file_path):
-    cwd = os.getcwd()
-    file_name = os.path.basename(file_path)
-    rel_dir = os.path.dirname(file_path) or '.'
-    dir_name = os.path.abspath(rel_dir)
-
-    os.chdir(dir_name)
-    yield file_name
-    os.chdir(cwd)
-
-
-class ContractHelper(object):
-    """
-    Tools for replacing strings in contract (regex). Default behaviour: replace developer addresses
-    """
-
-    def __init__(self, contract_path, regex=None):
-        if not regex:
-            regex = DEV_ADDR_REGEX
-
-        self.regex = re.compile(regex)
-        self.contract_path = contract_path
-
-        with work_dir_context(contract_path) as file_name:
-            self.source = open(file_name).read().rstrip()
-
-    def findall(self, regex=None):
-        return self._re(regex).findall(self.source)
-
-    def sub(self, replacements, regex=None):
-        i = [-1]
-
-        def replace(m):
-            i[0] += 1
-            if i[0] < len(replacements):
-                return m.group(0).replace(m.group(1), replacements[i[0]])
-            return m.group(0)
-
-        self.source = self._re(regex).sub(replace, self.source)
-
-    def _re(self, regex):
-        if regex:
-            return re.compile(regex)
-        return self.regex
-
-    @staticmethod
-    def dev_address(addr):
-        return '0x' + addr.encode('hex')
-
-
 class GNTCrowdfundingTest(unittest.TestCase):
 
     def setUp(self):
@@ -99,7 +48,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.addr_pd2
         ]]
 
-        self.contract, self.c_addr, _ = self.__deploy_gnt(self.founder, dev_addresses, 2, 2)
+        self.contract, self.c_addr, _ = deploy_gnt(self.state, self.founder, dev_addresses, 2, 2)
 
         self.creation_min = self.contract.tokenCreationMin()
         self.creation_rate = self.contract.tokenCreationRate()
@@ -107,28 +56,6 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.eth_part = int(self.creation_min / (3 * self.creation_rate)) + 1 * denoms.ether
 
         self.founder_key = tester.keys[9]
-
-    def __deploy_gnt(self, founder, dev_addresses, start, end, creator_idx=9):
-
-        alloc_helper = ContractHelper(ALLOC_CONTRACT_PATH)
-        # remove import
-        alloc_helper.sub([''], regex=IMPORT_TOKEN_REGEX)
-        # replace dev addresses
-        alloc_helper.sub(dev_addresses)
-
-        # replace import with contract source
-        gnt_helper = ContractHelper(GNT_CONTRACT_PATH, regex=IMPORT_ALLOC_REGEX)
-        gnt_helper.sub([alloc_helper.source])
-
-        gas_before = self.state.block.gas_used
-
-        with work_dir_context(gnt_helper.contract_path):
-            contract = self.state.abi_contract(gnt_helper.source,
-                                               language='solidity',
-                                               sender=tester.keys[creator_idx],
-                                               constructor_parameters=(founder, start, end))
-
-        return contract, contract.address, self.state.block.gas_used - gas_before
 
     def __deploy_proxy(self, available_after, creator_idx=9):
         return self.__deploy_contract(PROXY_INIT, PROXY_ABI, creator_idx, available_after)
@@ -419,25 +346,4 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # assert target.balanceOf(tester.accounts[0]) == 0
         # assert target.balanceOf(self.addr_pd0) == balance_pd0
 
-
-class GNTContractHelperTest(unittest.TestCase):
-
-    def test_sub(self):
-
-        alloc_helper = ContractHelper(ALLOC_CONTRACT_PATH)
-        # remove import
-        alloc_helper.sub([''], regex=IMPORT_TOKEN_REGEX)
-
-        assert alloc_helper.findall()[:6] == ['0xde00', '0xde01', '0xde02', '0xde03', '0xde04', '0xde05']
-        alloc_helper.sub(['0xad00', '0xad01', '0xad02'])
-        assert alloc_helper.findall()[:6] == ['0xad00', '0xad01', '0xad02', '0xde03', '0xde04', '0xde05']
-
-        # replace import with contract source
-        gnt_helper = ContractHelper(GNT_CONTRACT_PATH, regex=IMPORT_ALLOC_REGEX)
-        gnt_helper.sub([alloc_helper.source])
-
-        state = tester.state()
-        contract = state.abi_contract(gnt_helper.source, language='solidity', sender=tester.k0)
-
-        assert contract
 
