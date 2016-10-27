@@ -90,6 +90,7 @@ contract GolemNetworkToken {
     function GolemNetworkToken(address _golemFactory,
                                uint256 _fundingStartBlock,
                                uint256 _fundingEndBlock) {
+        lockedAllocation = new GNTAllocation(_golemFactory);
         golemFactory = _golemFactory;
         fundingStartBlock = _fundingStartBlock;
         fundingEndBlock = _fundingEndBlock;
@@ -217,7 +218,7 @@ contract GolemNetworkToken {
         // this calculation could be moved to GNTAllocation function
         uint256 percentTokensLocked = 18;
         uint256 numLockedTokens = totalTokens * percentTokensLocked / (100 - percentTokensLocked);
-        
+
         balances[lockedAllocation] += numLockedTokens;
         lockedAllocation.allocate(numLockedTokens);
         totalTokens += numLockedTokens;

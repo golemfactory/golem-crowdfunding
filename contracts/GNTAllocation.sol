@@ -1,5 +1,5 @@
 pragma solidity ^0.4.2;
-    
+
 import "./Token.sol";
 
 contract GNTAllocation {
@@ -8,19 +8,19 @@ contract GNTAllocation {
 
     address gnt;
     uint256 unlockedAt;
-    
+
     uint256 tokensCreated = 0;
     uint256 tokensRemaining = 0;
-    
+
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
-    
-    function GNTAllocation() internal {
+
+    function GNTAllocation(address _golemFactory) internal {
         gnt = msg.sender;
         unlockedAt = now + 658800;
 
         // reserved for factory
-        allocations[0xffff] = 120000; // 12 * DIVISOR / 100
-        
+        allocations[_golemFactory] = 120000; // 12 * DIVISOR / 100
+
         // developers
         allocations[0xde00] = 15000; // 6 * DIVISOR / 100 * 25 / 100
         allocations[0xde01] =  4380; // 6 * DIVISOR / 100 * 7.3 / 100
@@ -46,27 +46,19 @@ contract GNTAllocation {
         allocations[0xde21] =   252; // 6 * DIVISOR / 100 * 0.42 / 100
         allocations[0xde22] =   150; // 6 * DIVISOR / 100 * 0.25 / 100
     }
-    
+
     function allocate(uint256 _tokensCreated) external {
         if (msg.sender != gnt) throw;
 
-        var golemFactory = GolemNetworkToken(gnt).golemFactory();
-        if (golemFactory == 0) throw;
-        
-        // move factory tokens to designated golemfactory address
-        var factoryAllocation = allocations[0xffff];
-        allocations[0xffff] = 0;
-        allocations[golemFactory] = factoryAllocation;
-        
         tokensCreated = _tokensCreated;
         tokensRemaining = _tokensCreated;
     }
 
-    
+
     // Allows developer to transfer allocated tokens
     function transfer(address _to) returns (bool success) {
         if (tokensRemaining == 0 || now < unlockedAt) throw;
-        
+
         var allocation = allocations[msg.sender];
         if (allocation > 0) {
             allocations[msg.sender] = 0;
