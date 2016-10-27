@@ -884,6 +884,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         tokens_extra = total_tokens * sum_percent / (100 - sum_percent)
         tokens_ca = tokens_extra * ca_percent / sum_percent
         tokens_devs = tokens_extra - tokens_ca
+        assert tokens_ca
 
         assert contract.totalSupply() == total_tokens + tokens_extra
         total_tokens = contract.totalSupply()
@@ -931,18 +932,21 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
             balance = contract.balanceOf(dev_accounts[i])
             expected = dev_shares[i] * tokens_devs / 10000
+            print(balance, expected)
 
-            assert_error_range(balance, expected, n=20)
+            assert_error_range(balance, expected, n=1)
             ver_sum += expected
 
-        # FIXME
-        # assert_error_range(tokens_devs, ver_sum)
-        #
-        # ca_balance = contract.balanceOf(factory)
-        # assert_error_range(ca_balance, tokens_ca, n=20)
-        #
-        # ver_sum += ca_balance
-        # assert_error_range(contract.totalSupply() - total_tokens, ver_sum)
+        assert_error_range(tokens_devs, ver_sum)
+
+        ca_balance = contract.balanceOf(factory)
+        assert ca_balance == tokens_ca
+        assert_error_range(ca_balance, tokens_ca, n=1)
+
+        assert contract.totalSupply() == total_tokens
+
+        # FIXME: Fix the GNTAllocation contract to transfer out all tokens.
+        assert contract.balanceOf(allocation.address) == 0
 
     # assumes post funding period
     def _finalize_funding(self, addr, expected_supply):
