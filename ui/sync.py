@@ -3,7 +3,8 @@ from random import randint
 from web3 import Web3, KeepAliveRPCProvider
 
 # contract address
-address = '0xd3CdA913deB6f67967B99D67aCDFa1712C293601'
+address = '0xa769aF842bc51F8e79a57cFF3E9d2Cef2F702A1E'
+#address = '0xd3CdA913deB6f67967B99D67aCDFa1712C293601'
 
 tokenCreationRate = 1000    # @todo should be taken from the contract
 number_of_blocks = 1800000
