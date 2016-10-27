@@ -103,9 +103,6 @@ contract ProxyAccountCreator {
     
     bool finalized;
     
-    event DevProxy(uint256 idx, address _addr);
-    event GolemFactoryProxy(address _addr);
-    
     function ProxyAccountCreator(uint256 _availableAfter) {
         owner = msg.sender;
         availableAfter = _availableAfter;
@@ -124,8 +121,8 @@ contract ProxyAccountCreator {
         if (msg.sender != owner) throw;
         if (finalized) throw;
         
-        address   golemFactoryAddr = 0xde23;
-        address[] devs = [
+        var golemFactoryAddr = 0xde23;
+        var devs = [
             0xde00,
             0xde01,
             0xde02,
@@ -158,8 +155,6 @@ contract ProxyAccountCreator {
             var proxyContract = new TimeLockedGNTProxyAccount(devAddr, availableAfter);
             
             numGeneratedProxies++;
-        
-            DevProxy(i, address(proxyContract));
         }
         
         if(numGeneratedProxies == devs.length && !finalized) {
@@ -167,8 +162,6 @@ contract ProxyAccountCreator {
 
             finalized = true;
             numGeneratedProxies++;
-
-            GolemFactoryProxy(address(golemFactoryProxyContract));
         }
     }
 }
