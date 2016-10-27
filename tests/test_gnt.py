@@ -914,7 +914,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.block.timestamp += 1 * 10 ** 8
 
         allocation.unlock(sender=tester.k9)
-        assert not allocation.unlock(sender=tester.k9)
+        with self.assertRaises(TransactionFailed):
+            allocation.unlock(sender=tester.k9)
 
         def error(val, n=2):
             magnitude = int(math.log10(val))
