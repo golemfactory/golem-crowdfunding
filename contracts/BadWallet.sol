@@ -26,8 +26,8 @@ contract BadWallet {
                              uint256 _fundingEndBlock)
         returns (address a) {
 
-        wallet = new Source.GolemNetworkToken(_golemFactory, _fundingStartBlock,
-                                                      _fundingEndBlock);
+        wallet = new Source.GolemNetworkToken(_golemFactory, _golemFactory,
+                                              _fundingStartBlock, _fundingEndBlock);
         return wallet;
     }
     
