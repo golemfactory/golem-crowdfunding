@@ -149,7 +149,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         founder = tester.accounts[2]
         c, g = self.deploy_contract(founder, 5, 105)
         assert len(c) == 20
-        assert g <= 999659
+        assert g <= 1515182
         assert self.contract_balance() == 0
         assert decode_hex(self.c.golemFactory()) == founder
         assert not self.c.fundingActive()
@@ -164,8 +164,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.state.send(k, addr, v)
             costs.append(m.gas())
         print(costs)
-        assert max(costs) == 63533
-        assert min(costs) == 63533 - 15000
+        assert max(costs) == 63497
+        assert min(costs) == 63497 - 15000
 
     def test_gas_for_transfer(self):
         addr, _ = self.deploy_contract(urandom(20), 0, 1)
@@ -184,7 +184,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
             costs.append(m.gas())
         print(costs)
         assert max(costs) <= 51503
-        assert min(costs) >= 51375
+        assert min(costs) >= 51342
 
     def test_gas_for_migrate_all(self):
         factory_key = urandom(32)
@@ -208,7 +208,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
             costs.append(m.gas())
         print(costs)
         assert max(costs) <= 86313
-        assert min(costs) >= 56246
+        assert min(costs) >= 56243
 
     def test_gas_for_migrate_half(self):
         factory_key = urandom(32)
@@ -261,7 +261,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         m = self.monitor(0)
         self.c.finalize(sender=tester.k0)
         g = m.gas()
-        assert g == 602278
+        assert g == 124789
 
     def test_transfer_enabled_after_end_block(self):
         founder = tester.accounts[4]
@@ -705,17 +705,12 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert total_tokens == sum(eths) * creation_rate
 
         # finalize
-        with self.event_listener(self.c, self.state) as listener:
-            self.c.finalize()
-            self.listener = listener
+        self.c.finalize()
 
         with self.assertRaises(TransactionFailed):
             self.c.finalize()
 
-        assert len(self.listener.events) == n_devs + 1
-
         # verify values
-        zero_addr = '0' * 40
         dev_addrs = ['\0'*18 + decode_hex('de{:02}'.format(x))
                      for x in range(n_devs)]
         dev_shares = [2500, 730, 730, 730, 730, 730, 630, 630, 630, 630, 310,
@@ -735,36 +730,10 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # aux verification sum
         ver_sum = 0
 
-        def error(val, n=2):
-            magnitude = int(math.log10(val))
-            return val / (10 ** (magnitude - n))
-
         for i in xrange(n_devs):
-            expected = dev_shares[i] * tokens_devs / 10000
             balance = self.c.balanceOf(dev_addrs[i])
-            ver_sum += expected
-            err = error(expected)
-            assert expected - err <= balance <= expected + err
-            assert self.listener.event('Transfer',
-                                       _from=zero_addr,
-                                       _to=dev_addrs[i].encode('hex'),
-                                       _value=balance)
-
-        err = error(tokens_ca, n=3)
-        assert tokens_ca <= ca_balance <= tokens_ca + err
-
-        assert self.listener.event('Transfer',
-                                   _from=zero_addr,
-                                   _to=ca,
-                                   _value=ca_balance)
-        assert not self.listener.events  # no more events
-
-        err = error(ver_sum)
-        assert ver_sum - err <= tokens_devs <= ver_sum + err
-
-        ver_sum += ca_balance
-        err = error(ver_sum)
-        assert ver_sum - err <= self.c.totalSupply() - total_tokens <= ver_sum + err
+            assert balance == 0
+        assert ca_balance == 0
 
     # assumes post funding period
     def _finalize_funding(self, addr, expected_supply):
