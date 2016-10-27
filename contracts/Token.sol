@@ -1,5 +1,7 @@
 pragma solidity ^0.4.1;
 
+import "./GNTAllocation.sol";
+
 contract MigrationAgent {
     function migrateFrom(address _from, uint256 _value);
 }
@@ -21,6 +23,7 @@ contract GolemNetworkToken {
     // The flag indicates if the GNT contract is in "funding" mode.
     bool fundingMode = true;
 
+    GNTAllocation lockedAllocation;
     address public golemFactory;
 
     // The currect total token supply.
@@ -211,7 +214,7 @@ contract GolemNetworkToken {
 
     // Creates additional 12% of tokens for the Factory and 6% for developers.
     function createAdditionalTokens() internal {
-        // this calculation could be moved to lockedAllocation function
+        // this calculation could be moved to GNTAllocation function
         uint256 percentTokensLocked = 18;
         uint256 numLockedTokens = totalTokens * percentTokensLocked / (100 - percentTokensLocked);
         
