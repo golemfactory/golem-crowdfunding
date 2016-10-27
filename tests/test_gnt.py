@@ -563,12 +563,18 @@ class GNTCrowdfundingTest(unittest.TestCase):
         migration = self.m
         target = self.t
 
-        # attempt to enable migration using GF keys
+        # attempt to enable migration using wrong keys
         with self.assertRaises(TransactionFailed):
             source.setMigrationAgent(m_addr, sender=tester.k9)
+        with self.assertRaises(TransactionFailed):
+            source.setMigrationAgent(m_addr, sender=tester.k7)
+
+        with self.assertRaises(TransactionFailed):
+            source.setMigrationMaster(tester.a7, sender=tester.k9)
+        source.setMigrationMaster(tester.a7, sender=tester.k8)
 
         # attempt to enable migration using migration master keys
-        source.setMigrationAgent(m_addr, sender=tester.k8)
+        source.setMigrationAgent(m_addr, sender=tester.k7)
         migration.setTargetToken(t_addr, sender=tester.k9)
 
         assert source.balanceOf(tester.a1) == tokens
