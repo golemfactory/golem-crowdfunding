@@ -90,6 +90,7 @@ contract TimeLockedGolemFactoryProxyAccount is TimeLockedGNTProxyAccount {
     }
 }
 
+
 contract ProxyAccountCreator {
     
     address owner;
