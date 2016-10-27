@@ -68,8 +68,8 @@ contract TimeLockedGolemFactoryProxyAccount is TimeLockedGNTProxyAccount {
 
     // Golem Factory privileged API
 
-    function changeGolemFactory(address _golemFactory) ownerOnly external {
-        gnt.changeGolemFactory(_golemFactory);
+    function setMigrationMaster(address _migrationMaster) ownerOnly external {
+        gnt.setMigrationMaster(_migrationMaster);
     }
     // Migration interface
 

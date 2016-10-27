@@ -175,10 +175,13 @@ class GNTCrowdfundingTest(unittest.TestCase):
     def setUp(self):
         self.state = tester.state()
 
-    def deploy_contract(self, founder, start, end, creator_idx=9):
+    def deploy_contract(self, founder, start, end,
+                        creator_idx=9, migration_master=None):
+        if migration_master is None:
+            migration_master = founder
         owner = self.monitor(creator_idx)
         t = abi.ContractTranslator(GNT_ABI)
-        args = t.encode_constructor_arguments((founder, start, end))
+        args = t.encode_constructor_arguments((founder, migration_master, start, end))
         addr = self.state.evm(GNT_INIT + args,
                               sender=owner.key)
         self.c = tester.ABIContract(self.state, GNT_ABI, addr)
@@ -236,7 +239,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         founder = tester.accounts[2]
         c, g = self.deploy_contract(founder, 5, 105)
         assert len(c) == 20
-        assert g <= 1515182
+        assert g <= 1533752
         assert self.contract_balance() == 0
         assert decode_hex(self.c.golemFactory()) == founder
         assert not self.c.fundingActive()
@@ -251,8 +254,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.state.send(k, addr, v)
             costs.append(m.gas())
         print(costs)
-        assert max(costs) == 63497
-        assert min(costs) == 63497 - 15000
+        assert max(costs) == 63496
+        assert min(costs) == 63496 - 15000
 
     def test_gas_for_transfer(self):
         addr, _ = self.deploy_contract(urandom(20), 0, 1)
@@ -335,7 +338,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.c.refund(sender=k)
             costs.append(m.gas())
         print(costs)
-        assert max(costs) <= 25526
+        assert max(costs) <= 25548
         assert min(costs) >= 20263
 
     def test_gas_for_finalize(self):
@@ -348,7 +351,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         m = self.monitor(0)
         self.c.finalize(sender=tester.k0)
         g = m.gas()
-        assert g == 124767
+        assert g == 124709
 
     def test_transfer_enabled_after_end_block(self):
         founder = tester.accounts[4]
@@ -620,6 +623,55 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         with self.assertRaises(TransactionFailed):
             migration.finalizeMigration(sender=tester.k9)
+
+    def test_migration_master(self):
+        s_addr, _ = self.deploy_contract(tester.a9, 2, 2, migration_master=tester.a8)
+        source = self.c
+
+        tokens = source.tokenCreationCap()
+        eths = tokens / source.tokenCreationRate()
+
+        self.state.mine(2)
+
+        # funding
+        self.state.send(tester.k1, s_addr, eths)
+
+        # post funding
+        self.state.mine(1)
+
+        assert not source.finalized()
+        self._finalize_funding(s_addr, expected_supply=tokens)
+        assert source.finalized()
+
+        # migration and target token contracts
+        m_addr, _ = self.deploy_migration_contract(s_addr)
+        t_addr, _ = self.deploy_target_contract(m_addr)
+
+        migration = self.m
+        target = self.t
+
+        # attempt to enable migration using wrong keys
+        with self.assertRaises(TransactionFailed):
+            source.setMigrationAgent(m_addr, sender=tester.k9)
+        with self.assertRaises(TransactionFailed):
+            source.setMigrationAgent(m_addr, sender=tester.k7)
+
+        with self.assertRaises(TransactionFailed):
+            source.setMigrationMaster(tester.a7, sender=tester.k9)
+        source.setMigrationMaster(tester.a7, sender=tester.k8)
+
+        # attempt to enable migration using migration master keys
+        source.setMigrationAgent(m_addr, sender=tester.k7)
+        migration.setTargetToken(t_addr, sender=tester.k9)
+
+        assert source.balanceOf(tester.a1) == tokens
+        assert target.balanceOf(tester.a1) == 0
+
+        with self.assertRaises(TransactionFailed):
+            source.migrate(0, sender=tester.k1)
+
+        with self.assertRaises(TransactionFailed):
+            source.migrate(tokens + 1, sender=tester.k1)
 
     def test_multiple_migrations(self):
         s_addr, _ = self.deploy_contract(tester.a9, 1, 1)

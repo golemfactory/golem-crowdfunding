@@ -23,8 +23,13 @@ contract GolemNetworkToken {
     // The flag indicates if the GNT contract is in "funding" mode.
     bool fundingMode = true;
 
-    GNTAllocation public lockedAllocation;
+    // Receives ETH and its own GNT endowment.
     address public golemFactory;
+
+    // Has control over token migration to next version of token.
+    address public migrationMaster;
+
+    GNTAllocation public lockedAllocation;
 
     // The currect total token supply.
     uint256 totalTokens;
@@ -88,9 +93,11 @@ contract GolemNetworkToken {
     }
 
     function GolemNetworkToken(address _golemFactory,
+                               address _migrationMaster,
                                uint256 _fundingStartBlock,
                                uint256 _fundingEndBlock) {
         lockedAllocation = new GNTAllocation(_golemFactory);
+        migrationMaster = _migrationMaster;
         golemFactory = _golemFactory;
         fundingStartBlock = _fundingStartBlock;
         fundingEndBlock = _fundingEndBlock;
@@ -129,9 +136,13 @@ contract GolemNetworkToken {
     }
 
     function setMigrationAgent(address _agent) inNormal external {
-        if (msg.sender != golemFactory) throw;
-
+        if (msg.sender != migrationMaster) throw;
         migrationAgent = _agent;
+    }
+
+    function setMigrationMaster(address _master) external {
+        if (msg.sender != migrationMaster) throw;
+        migrationMaster = _master;
     }
 
     // Crowdfunding:
@@ -156,11 +167,6 @@ contract GolemNetworkToken {
 
     function finalized() constant external returns (bool) {
         return !fundingMode;
-    }
-
-    function changeGolemFactory(address _golemFactory) inOperational external {
-        if (msg.sender == golemFactory)
-            golemFactory = _golemFactory;
     }
 
     // Create tokens when funding is active
