@@ -6,5 +6,5 @@ dependencies:
 
 test:
   override:
-    - make build
+    - make clean build
     - py.test tests

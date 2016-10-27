@@ -221,6 +221,36 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.t = tester.ABIContract(self.state, TARGET_ABI, addr)
         return addr, owner.gas()
 
+    def deploy_contract_and_accounts(self, n_devs):
+        dev_keys = []
+        dev_accounts = []
+
+        # create developer accounts and keys in fashion of testers
+        for account_number in range(n_devs):
+            dev_keys.append(sha3('dev' + to_string(account_number)))
+            dev_accounts.append(privtoaddr(dev_keys[-1]))
+
+        # developer balances
+        block = self.state.block
+
+        for i in range(n_devs):
+            addr, data = dev_accounts[i], {'wei': 10 ** 24}
+            if len(addr) == 40:
+                addr = decode_hex(addr)
+            assert len(addr) == 20
+            block.set_balance(addr, parse_int_or_hex(data['wei']))
+
+        block.commit_state()
+        block.state.db.commit()
+
+        dev_addresses = [ContractHelper.dev_address(a) for a in dev_accounts]
+
+        # deploy the gnt contract with updated developer accounts
+        contract, _, _ = deploy_gnt(self.state, tester.accounts[9], dev_addresses, 2, 2)
+        allocation = tester.ABIContract(self.state, ALLOC_ABI, contract.lockedAllocation())
+
+        return contract, allocation, dev_keys, dev_accounts
+
     def contract_balance(self):
         return self.state.block.get_balance(self.c.address)
 
@@ -239,7 +269,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         founder = tester.accounts[2]
         c, g = self.deploy_contract(founder, 5, 105)
         assert len(c) == 20
-        assert g <= 1533752
+        assert g <= 1536765
         assert self.contract_balance() == 0
         assert decode_hex(self.c.golemFactory()) == founder
         assert not self.c.fundingActive()
@@ -351,7 +381,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         m = self.monitor(0)
         self.c.finalize(sender=tester.k0)
         g = m.gas()
-        assert g == 124709
+        assert g == 104700
 
     def test_transfer_enabled_after_end_block(self):
         founder = tester.accounts[4]
@@ -807,46 +837,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.contract_balance() == 0
 
     def test_finalize_funding(self):
-
-        ca_percent = 12
-        devs_percent = 6
-        sum_percent = ca_percent + devs_percent
-        n_devs = 23
-
-        # ---------------
-        #     SETUP
-        # ---------------
-        dev_keys = []
-        dev_accounts = []
-        dev_shares = [2500, 730, 730, 730, 730, 730, 630, 630, 630, 630, 310,
-                      153, 150, 100, 100, 100, 70, 70, 70, 70, 70, 42, 25]
-
-        # create developer accounts and keys in fashion of testers
-        for account_number in range(n_devs):
-            dev_keys.append(sha3('dev' + to_string(account_number)))
-            dev_accounts.append(privtoaddr(dev_keys[-1]))
-
-        # developer balances
-        block = self.state.block
-
-        for i in range(n_devs):
-            addr, data = dev_accounts[i], {'wei': 10 ** 24}
-            if len(addr) == 40:
-                addr = decode_hex(addr)
-            assert len(addr) == 20
-            block.set_balance(addr, parse_int_or_hex(data['wei']))
-
-        block.commit_state()
-        block.state.db.commit()
-
-        dev_addresses = [ContractHelper.dev_address(a) for a in dev_accounts]
-
-        # deploy the gnt contract with updated developer accounts
-        contract, addr, _ = deploy_gnt(self.state, tester.accounts[9], dev_addresses, 2, 2)
+        self.deploy_contract(tester.accounts[9], 2, 2)
+        contract = self.c
         allocation = tester.ABIContract(self.state, ALLOC_ABI, contract.lockedAllocation())
-
-        factory = contract.golemFactory()
-        creation_rate = contract.tokenCreationRate()
 
         # ---------------
         #   PRE FUNDING
@@ -866,7 +859,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         for i, e in enumerate(eths):
             self.state.send(tester.keys[i], contract.address, e)
-            assert contract.balanceOf(tester.accounts[i]) == creation_rate * e
+            assert contract.balanceOf(tester.accounts[i]) == contract.tokenCreationRate() * e
 
         with self.assertRaises(TransactionFailed):
             contract.finalize()
@@ -877,33 +870,63 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.mine(1)
 
         total_tokens = contract.totalSupply()
-        assert total_tokens == sum(eths) * creation_rate
+        assert total_tokens == sum(eths) * contract.tokenCreationRate()
 
         contract.finalize()
+        with self.assertRaises(TransactionFailed):
+            contract.finalize()
+
+        factory_percent = 12
+        devs_percent = 6
+        sum_percent = factory_percent + devs_percent
+        tokens_extra = total_tokens * sum_percent / (100 - sum_percent)
+
+        assert contract.totalSupply() == total_tokens + tokens_extra
+        assert contract.balanceOf(allocation.address) == tokens_extra
+
+    def test_finalize_and_unlock(self):
+
+        dev_shares = [2500, 730, 730, 730, 730, 730, 630, 630, 630, 630, 310,
+                      153, 150, 100, 100, 100, 70, 70, 70, 70, 70, 42, 25]
+
+        n_devs = len(dev_shares)
+        contract, allocation, dev_keys, dev_accounts = self.deploy_contract_and_accounts(n_devs)
+        factory = contract.golemFactory()
+
+        # ---------------
+        #     FUNDING
+        # ---------------
+        self.state.mine(2)
+
+        n_testers = len(tester.accounts) - 1
+        eths = [(i + 1) * 10000 * denoms.ether for i in xrange(n_testers)]
+
+        for i, e in enumerate(eths):
+            self.state.send(tester.keys[i], contract.address, e)
+
+        # ---------------
+        #  POST FUNDING
+        # ---------------
+        self.state.mine(1)
+
+        total_tokens = contract.totalSupply()
+
+        contract.finalize()
+
+        ca_percent, devs_percent = 12, 6
+        sum_percent = ca_percent + devs_percent
 
         tokens_extra = total_tokens * sum_percent / (100 - sum_percent)
         tokens_ca = tokens_extra * ca_percent / sum_percent
         tokens_devs = tokens_extra - tokens_ca
-        assert tokens_ca
-
-        assert contract.totalSupply() == total_tokens + tokens_extra
-        total_tokens = contract.totalSupply()
-
-        with self.assertRaises(TransactionFailed):
-            contract.finalize()
-
-        print "Total tokens:\t{}".format(total_tokens)
-        print "Extra tokens:\t{}".format(tokens_extra)
-        print "CA tokens:\t {}".format(tokens_ca)
-        print "Devs", dev_accounts, dev_shares
-
-        for i in xrange(n_devs):
-            assert contract.balanceOf(dev_accounts[i]) == 0
-        assert contract.balanceOf(factory) == 0
 
         # ---------------
         #   PRE UNLOCK
         # ---------------
+        for i in xrange(n_devs):
+            assert contract.balanceOf(dev_accounts[i]) == 0
+        assert contract.balanceOf(factory) == 0
+
         with self.assertRaises(TransactionFailed):
             allocation.unlock(sender=tester.k9)
 
@@ -913,39 +936,28 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.mine(1)
         self.state.block.timestamp += 1 * 10 ** 8
 
+        balance_sum = 0
+
         allocation.unlock(sender=tester.k9)
         with self.assertRaises(TransactionFailed):
             allocation.unlock(sender=tester.k9)
 
-        def error(val, n=2):
-            magnitude = int(math.log10(val))
-            assert magnitude - n > 0
-            return val / (10 ** (magnitude - n))
-
-        def assert_error_range(value, expected, n=1):
-            err = error(expected, n)
-            assert expected - err <= value <= expected + err
-
-        ver_sum = 0
+        def assert_error_range(_value, _expected, n=1):
+            magnitude = int(math.log10(_value)) if _value else 1
+            err = _value / (10 ** (magnitude - n))
+            assert _expected - err <= _value <= _expected + err
 
         for i in xrange(n_devs):
             allocation.unlock(sender=dev_keys[i])
-
             balance = contract.balanceOf(dev_accounts[i])
             expected = dev_shares[i] * tokens_devs / 10000
-            print(balance, expected)
 
-            assert_error_range(balance, expected, n=1)
-            ver_sum += expected
+            assert_error_range(balance, expected)
+            balance_sum += expected
 
-        assert_error_range(tokens_devs, ver_sum)
+        assert_error_range(tokens_devs, balance_sum)
 
-        ca_balance = contract.balanceOf(factory)
-        assert ca_balance == tokens_ca
-        assert_error_range(ca_balance, tokens_ca, n=1)
-
-        assert contract.totalSupply() == total_tokens
-
+        assert contract.balanceOf(factory) == tokens_ca
         # FIXME: Fix the GNTAllocation contract to transfer out all tokens.
         assert contract.balanceOf(allocation.address) == 0
 
