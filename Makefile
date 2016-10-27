@@ -54,4 +54,4 @@ tests/GNTAllocation.abi: contracts/GNTAllocation.sol
 	solc --bin --abi --optimize contracts/GNTAllocation.sol | awk '/======= GNTAllocation =======/,/======= GolemNetworkToken =======/' | grep '\[.*\]' > tests/GNTAllocation.abi
 
 clean:
-	git checkout -- tests/GolemNetworkToken.bin tests/GolemNetworkToken.abi tests/GNTTargetToken.bin tests/GNTTargetToken.abi tests/MigrationAgent.bin tests/MigrationAgent.abi tests/ProxyAccount.bin tests/ProxyAccount.abi tests/ProxyFactoryAccount.bin tests/ProxyFactoryAccount.abi tests/GNTAllocation.bin tests/GNTAllocation.abi
+	rm -f tests/*.bin tests/*.abi
