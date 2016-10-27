@@ -45,6 +45,7 @@ contract GNTAllocation {
         allocations[0xde22] =   150; // 6 * DIVISOR / 100 * 0.25 / 100
     }
 
+    // FIXME: Rename to something like "notifyFundingFinalized()"?
     function allocate(uint256 _tokensCreated) external {
         if (msg.sender != address(gnt)) throw;
 
@@ -53,11 +54,13 @@ contract GNTAllocation {
     }
 
 
-    // Allows developer to transfer allocated tokens
-    function transfer(address _to) returns (bool success) {
+    // Allows developer to unlock its allocated tokens by transfering them back
+    // to its address.
+    function unlock() returns (bool success) {
         // FIXME: Remove tokensRemaining == 0 test. Not needed.
         if (tokensRemaining == 0 || now < unlockedAt) throw;
 
+        // FIXME: Consider allowing any sender to unlock developer tokens.
         var allocation = allocations[msg.sender];
         if (allocation > 0) {
             allocations[msg.sender] = 0;
@@ -66,9 +69,11 @@ contract GNTAllocation {
             // account for rounding (only last developer to pull tokens will be affected)
             // FIXME: This cannot happen, but some remaining tokens are going to
             //        left here forever. Assign them to the last transfer.
+            // FIXME: We can also selfdestruct the contract after unlocking
+            //        last account.
             toTransfer = toTransfer > tokensRemaining ? tokensRemaining : toTransfer;
             tokensRemaining -= toTransfer;
-            gnt.transfer(_to, toTransfer);
+            gnt.transfer(msg.sender, toTransfer);
             return true;
         }
         return false;
