@@ -1,10 +1,7 @@
-.PHONY: tests unit prop proxy clean
+.PHONY: tests unit proxy clean
 
 tests: build
 	pytest tests
-
-prop: build
-	pytest tests/test_logic.py
 
 unit: build
 	pytest tests/test_gnt.py
