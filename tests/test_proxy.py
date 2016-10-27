@@ -91,7 +91,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
         contract = self.state.abi_contract(contract_obj.source,
                                            language='solidity',
                                            sender=tester.keys[creator_idx],
-                                           constructor_parameters=(founder, start, end))
+                                           constructor_parameters=(founder, founder,
+                                                                   start, end))
 
         return contract, contract.address, self.state.block.gas_used - gas_before
 
