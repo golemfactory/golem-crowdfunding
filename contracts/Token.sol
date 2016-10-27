@@ -211,66 +211,12 @@ contract GolemNetworkToken {
 
     // Creates additional 12% of tokens for the Factory and 6% for developers.
     function createAdditionalTokens() internal {
-        // TODO: SET before THE CROWDFUNDING!
-        // Invariants:
-        // dev0Percent + dev1Percent + dev2Percent + dev3Percent + dev4Percent + dev5Percent = 100
-        // dev0Percent > 0 && dev1Percent > 0 && dev2Percent > 0 && dev3Percent > 0 && dev4Percent > 0 && dev5Percent > 0
-
-        uint256 percentTokensGolemFactory = 12;
-        uint256 percentTokensDevelopers = 6;
-
-        // List of developer addresses and their shares.
-        // The sum of shares is 10000.
-        var devs = [
-            Dev(0xde00, 2500)
-            Dev(0xde01,  730)
-            Dev(0xde02,  730)
-            Dev(0xde03,  730)
-            Dev(0xde04,  730)
-            Dev(0xde05,  730)
-            Dev(0xde06,  630)
-            Dev(0xde07,  630)
-            Dev(0xde08,  630)
-            Dev(0xde09,  630)
-            Dev(0xde10,  310)
-            Dev(0xde11,  153)
-            Dev(0xde12,  150)
-            Dev(0xde13,  100)
-            Dev(0xde14,  100)
-            Dev(0xde15,  100)
-            Dev(0xde16,   70)
-            Dev(0xde17,   70)
-            Dev(0xde18,   70)
-            Dev(0xde19,   70)
-            Dev(0xde20,   70)
-            Dev(0xde21,   42)
-            Dev(0xde22,   25)
-        ];
-
-        var numAdditionalTokens =
-            totalTokens * (percentTokensGolemFactory + percentTokensDevelopers) /
-            (100 - percentTokensGolemFactory - percentTokensDevelopers);
-        var numTokensForDevs =
-            numAdditionalTokens * percentTokensDevelopers /
-            (percentTokensGolemFactory + percentTokensDevelopers);
-
-        uint256 numTokensAssigned = 0;
-        var len = devs.length;
-        for (uint256 i = 0; i < len; ++i) {
-            var dev = devs[i];
-            var n = dev.share * numTokensForDevs / 10000;
-            numTokensAssigned += n;
-            balances[dev.addr] += n;
-            // Log token creation event for developers
-            Transfer(0, dev.addr, n);
-        }
-
-        var numTokensForGolemFactory = numAdditionalTokens - numTokensAssigned;
-        balances[golemFactory] += numTokensForGolemFactory;
-        // Log token creation event for golemFactory
-        Transfer(0, golemFactory, numTokensForGolemFactory);
-
-        // Update GNT state (number of tokens)
-        totalTokens += numAdditionalTokens;
+        // this calculation could be moved to lockedAllocation function
+        uint256 percentTokensLocked = 18;
+        uint256 numLockedTokens = totalTokens * percentTokensLocked / (100 - percentTokensLocked);
+        
+        balances[lockedAllocation] += numLockedTokens;
+        lockedAllocation.allocate(numLockedTokens);
+        totalTokens += numLockedTokens;
     }
 }

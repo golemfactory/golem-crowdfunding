@@ -12,7 +12,7 @@ unit: build
 proxy: build
 	pytest tests/test_proxy.py
 
-build: tests/GolemNetworkToken.abi tests/GolemNetworkToken.bin tests/GNTTargetToken.bin tests/GNTTargetToken.abi tests/MigrationAgent.bin tests/MigrationAgent.abi tests/BadWallet.bin tests/BadWallet.abi tests/ProxyAccount.bin tests/ProxyAccount.abi tests/ProxyFactoryAccount.bin tests/ProxyFactoryAccount.abi
+build: tests/GolemNetworkToken.abi tests/GolemNetworkToken.bin tests/GNTTargetToken.bin tests/GNTTargetToken.abi tests/MigrationAgent.bin tests/MigrationAgent.abi tests/BadWallet.bin tests/BadWallet.abi tests/ProxyAccount.bin tests/ProxyAccount.abi tests/ProxyFactoryAccount.bin tests/ProxyFactoryAccount.abi tests/GNTAllocation.bin tests/GNTAllocation.abi
 
 tests/GolemNetworkToken.bin: contracts/Token.sol
 	solc --bin --abi --optimize contracts/Token.sol | awk '/======= GolemNetworkToken =======/,/======= MigrationAgent =======/' | grep '[01-9a-f]\{10,\}' > tests/GolemNetworkToken.bin
@@ -50,5 +50,11 @@ tests/ProxyFactoryAccount.bin: contracts/ProxyAccount.sol
 tests/ProxyFactoryAccount.abi: contracts/ProxyAccount.sol
 	solc --bin --abi --optimize contracts/ProxyAccount.sol | awk '/======= TimeLockedGolemFactoryProxyAccount =======/,0' | grep '\[.*\]' > tests/ProxyFactoryAccount.abi
 
+tests/GNTAllocation.bin: contracts/GNTAllocation.sol
+	solc --bin --abi --optimize contracts/GNTAllocation.sol | awk '/======= GNTAllocation =======/,0' | grep '[01-9a-f]\{10,\}' > tests/GNTAllocation.bin
+
+tests/GNTAllocation.abi: contracts/GNTAllocation.sol
+	solc --bin --abi --optimize contracts/GNTAllocation.sol | awk '/======= GNTAllocation =======/,0' | grep '\[.*\]' > tests/GNTAllocation.abi
+
 clean:
-	git checkout -- tests/GolemNetworkToken.bin tests/GolemNetworkToken.abi tests/GNTTargetToken.bin tests/GNTTargetToken.abi tests/MigrationAgent.bin tests/MigrationAgent.abi tests/ProxyAccount.bin tests/ProxyAccount.abi tests/ProxyFactoryAccount.bin tests/ProxyFactoryAccount.abi
+	git checkout -- tests/GolemNetworkToken.bin tests/GolemNetworkToken.abi tests/GNTTargetToken.bin tests/GNTTargetToken.abi tests/MigrationAgent.bin tests/MigrationAgent.abi tests/ProxyAccount.bin tests/ProxyAccount.abi tests/ProxyFactoryAccount.bin tests/ProxyFactoryAccount.abi tests/GNTAllocation.bin tests/GNTAllocation.abi
