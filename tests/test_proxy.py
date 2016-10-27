@@ -242,8 +242,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
         with self.assertRaises(TransactionFailed):
             self.pf.transfer(tester.accounts[8], self.transfer_value, sender=tester.keys[2])
 
-        gnt_pd0 = self.contract.balanceOf(self.addr_pd0)
-        gnt_pf = self.contract.balanceOf(self.founder)
+        # gnt_pd0 = self.contract.balanceOf(self.addr_pd0)
+        # gnt_pf = self.contract.balanceOf(self.founder)
 
         self.pd0.transfer(tester.accounts[8], self.transfer_value, sender=tester.keys[0])
         self.pf.transfer(tester.accounts[8], self.transfer_value, sender=founder_key)
@@ -391,9 +391,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
         migration, m_addr, _ = self.__deploy_contract(MIGRATION_INIT, MIGRATION_ABI, 9, self.c_addr)
         target, t_addr, _ = self.__deploy_contract(TARGET_INIT, TARGET_ABI, 9, m_addr)
 
-        extra_tokens = self.contract.totalSupply() - total_tokens
-        approx_min_tokens = int(extra_tokens / 30.)
-        balance_pd0 = self.contract.balanceOf(self.addr_pd0)
+        # extra_tokens = self.contract.totalSupply() - total_tokens
+        # approx_min_tokens = int(extra_tokens / 30.)
+        # balance_pd0 = self.contract.balanceOf(self.addr_pd0)
 
         self.pf.setMigrationAgent(m_addr, sender=self.founder_key)
 
@@ -428,8 +428,6 @@ class GNTContractHelperTest(unittest.TestCase):
         # remove import
         alloc_helper.sub([''], regex=IMPORT_TOKEN_REGEX)
 
-        print alloc_helper.findall()
-
         assert alloc_helper.findall()[:6] == ['0xde00', '0xde01', '0xde02', '0xde03', '0xde04', '0xde05']
         alloc_helper.sub(['0xad00', '0xad01', '0xad02'])
         assert alloc_helper.findall()[:6] == ['0xad00', '0xad01', '0xad02', '0xde03', '0xde04', '0xde05']
@@ -440,9 +438,6 @@ class GNTContractHelperTest(unittest.TestCase):
 
         state = tester.state()
         contract = state.abi_contract(gnt_helper.source, language='solidity', sender=tester.k0)
-
-        import pprint
-        pprint.pprint(dir(contract))
 
         assert contract
 
