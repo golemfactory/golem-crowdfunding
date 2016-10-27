@@ -10,7 +10,6 @@ contract GNTAllocation {
     uint256 unlockedAt;
 
     uint256 tokensCreated = 0;
-    uint256 tokensRemaining = 0;
 
     function GNTAllocation(address _golemFactory) internal {
         gnt = GolemNetworkToken(msg.sender);
@@ -50,29 +49,25 @@ contract GNTAllocation {
         if (msg.sender != address(gnt)) throw;
 
         tokensCreated = _tokensCreated;
-        tokensRemaining = _tokensCreated;
     }
 
 
     // Allows developer to unlock its allocated tokens by transfering them back
     // to its address.
     function unlock() external {
-        // FIXME: Remove tokensRemaining == 0 test. Not needed.
-        if (tokensRemaining == 0 || now < unlockedAt) throw;
+        if (now < unlockedAt) throw;
 
         var allocation = allocations[msg.sender];
         allocations[msg.sender] = 0;
 
         var toTransfer = tokensCreated * allocation / DIVISOR;
-        tokensRemaining -= toTransfer;
 
         // Handle rounding leftovers
         // FIXME: We can also selfdestruct the contract after unlocking
         //        last account.
-        if (tokensRemaining < 25) {
-            toTransfer += tokensRemaining;
-            tokensRemaining = 0;
-        }
+        uint256 tokensRemaining = gnt.balanceOf(this);
+        if ((tokensRemaining - toTransfer) < 25)
+            toTransfer = tokensRemaining;
 
         // Will fail if allocation is 0.
         if (!gnt.transfer(msg.sender, toTransfer)) throw;
