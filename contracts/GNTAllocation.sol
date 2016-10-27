@@ -64,13 +64,16 @@ contract GNTAllocation {
         allocations[msg.sender] = 0;
 
         var toTransfer = tokensCreated * allocation / DIVISOR;
-        // account for rounding (only last developer to pull tokens will be affected)
-        // FIXME: This cannot happen, but some remaining tokens are going to
-        //        left here forever. Assign them to the last transfer.
+        tokensRemaining -= toTransfer;
+
+        // Handle rounding leftovers
         // FIXME: We can also selfdestruct the contract after unlocking
         //        last account.
-        toTransfer = toTransfer > tokensRemaining ? tokensRemaining : toTransfer;
-        tokensRemaining -= toTransfer;
+        if (tokensRemaining < 25) {
+            toTransfer += tokensRemaining;
+            tokensRemaining = 0;
+        }
+
         // Will fail if allocation is 0.
         if (!gnt.transfer(msg.sender, toTransfer)) throw;
     }
