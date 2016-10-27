@@ -12,8 +12,6 @@ contract GNTAllocation {
     uint256 tokensCreated = 0;
     uint256 tokensRemaining = 0;
 
-    event Transfer(address indexed _from, address indexed _to, uint256 _value);
-
     function GNTAllocation(address _golemFactory) internal {
         gnt = GolemNetworkToken(msg.sender);
         unlockedAt = now + 6 * 30 days;
@@ -57,6 +55,7 @@ contract GNTAllocation {
 
     // Allows developer to transfer allocated tokens
     function transfer(address _to) returns (bool success) {
+        // FIXME: Remove tokensRemaining == 0 test. Not needed.
         if (tokensRemaining == 0 || now < unlockedAt) throw;
 
         var allocation = allocations[msg.sender];
@@ -65,10 +64,11 @@ contract GNTAllocation {
 
             var toTransfer = tokensCreated * allocation / DIVISOR;
             // account for rounding (only last developer to pull tokens will be affected)
+            // FIXME: This cannot happen, but some remaining tokens are going to
+            //        left here forever. Assign them to the last transfer.
             toTransfer = toTransfer > tokensRemaining ? tokensRemaining : toTransfer;
             tokensRemaining -= toTransfer;
             gnt.transfer(_to, toTransfer);
-            Transfer(msg.sender, _to, toTransfer);
             return true;
         }
         return false;
