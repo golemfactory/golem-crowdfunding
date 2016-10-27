@@ -272,15 +272,15 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.state.block.get_balance(tester.accounts[9]) > account9_balance_initial
         assert self.state.block.get_balance(tester.accounts[9]) <= account9_balance_initial + to_withdraw
 
-    def test_change_factory_and_migration_agent(self):
+    def test_migration_master_and_migration_agent(self):
         # ---------------
         #   PRE FUNDING
         # ---------------
         self.state.mine(1)
 
-        # gnt.changeGolemFactory | inOperational
+        # gnt.setMigrationMaster | inOperational
         with self.assertRaises(TransactionFailed):
-            self.pf.changeGolemFactory(tester.accounts[7], sender=self.founder_key)
+            self.pf.setMigrationMaster(tester.accounts[7], sender=self.founder_key)
 
         # gnt.setMigrationAgent | inNormal
         with self.assertRaises(TransactionFailed):
@@ -296,9 +296,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.send(tester.keys[4], self.c_addr, self.eth_part)
         self.state.send(tester.keys[5], self.c_addr, self.eth_part)
 
-        # gnt.changeGolemFactory | inOperational
+        # gnt.setMigrationMaster | inOperational
         with self.assertRaises(TransactionFailed):
-            self.pf.changeGolemFactory(tester.accounts[7], sender=self.founder_key)
+            self.pf.setMigrationMaster(tester.accounts[7], sender=self.founder_key)
 
         # ---------------
         #  POST FUNDING
@@ -319,11 +319,11 @@ class GNTCrowdfundingTest(unittest.TestCase):
         with self.assertRaises(TransactionFailed):
             self.pf.setMigrationAgent(tester.accounts[7], sender=self.founder_key)
 
-        # Fail: proxy.changeGolemFactory | ownerOnly
+        # Fail: proxy.setMigrationMaster | ownerOnly
         with self.assertRaises(TransactionFailed):
-            self.pf.changeGolemFactory(tester.accounts[7], sender=tester.keys[7])
+            self.pf.setMigrationMaster(tester.accounts[7], sender=tester.keys[7])
 
-        self.pf.changeGolemFactory(tester.accounts[7], sender=self.founder_key)
+        self.pf.setMigrationMaster(tester.accounts[7], sender=self.founder_key)
 
     def test_migration(self):
         # ---------------
