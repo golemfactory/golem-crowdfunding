@@ -124,7 +124,7 @@ contract ProxyAccountCreator {
         if (msg.sender != owner) throw;
         if (finalized) throw;
         
-        address   golemFactory = 0xde23;
+        address   golemFactoryAddr = 0xde23;
         address[] devs = [
             0xde00,
             0xde01,
@@ -171,3 +171,4 @@ contract ProxyAccountCreator {
             GolemFactoryProxy(address(golemFactoryProxyContract));
         }
     }
+}
