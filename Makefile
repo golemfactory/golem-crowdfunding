@@ -33,10 +33,10 @@ tests/MigrationAgent.abi: contracts/ExampleMigration.sol
 	solc --bin --abi --optimize contracts/ExampleMigration.sol | awk '/======= MigrationAgent =======/,0' | grep '\[.*\]' > tests/MigrationAgent.abi
 
 tests/BadWallet.bin: contracts/BadWallet.sol
-	solc --bin --abi --optimize contracts/BadWallet.sol | awk '/======= BadWallet =======/,/======= GolemNetworkToken =======/' | grep '[01-9a-f]\{10,\}' > tests/BadWallet.bin
+	solc --bin --abi --optimize contracts/BadWallet.sol | awk '/======= BadWallet =======/,/======= GNTAllocation =======/' | grep '[01-9a-f]\{10,\}' > tests/BadWallet.bin
 
 tests/BadWallet.abi: contracts/BadWallet.sol
-	solc --bin --abi --optimize contracts/BadWallet.sol | awk '/======= BadWallet =======/,/======= GolemNetworkToken =======/' | grep '\[.*\]' > tests/BadWallet.abi
+	solc --bin --abi --optimize contracts/BadWallet.sol | awk '/======= BadWallet =======/,/======= GNTAllocation =======/' | grep '\[.*\]' > tests/BadWallet.abi
 
 tests/ProxyAccount.bin: contracts/ProxyAccount.sol
 	solc --bin --abi --optimize contracts/ProxyAccount.sol | awk '/======= TimeLockedGNTProxyAccount =======/,/======= TimeLockedGolemFactoryProxyAccount =======/' | grep '[01-9a-f]\{10,\}' > tests/ProxyAccount.bin
@@ -51,10 +51,10 @@ tests/ProxyFactoryAccount.abi: contracts/ProxyAccount.sol
 	solc --bin --abi --optimize contracts/ProxyAccount.sol | awk '/======= TimeLockedGolemFactoryProxyAccount =======/,0' | grep '\[.*\]' > tests/ProxyFactoryAccount.abi
 
 tests/GNTAllocation.bin: contracts/GNTAllocation.sol
-	solc --bin --abi --optimize contracts/GNTAllocation.sol | awk '/======= GNTAllocation =======/,0' | grep '[01-9a-f]\{10,\}' > tests/GNTAllocation.bin
+	solc --bin --abi --optimize contracts/GNTAllocation.sol | awk '/======= GNTAllocation =======/,/======= GolemNetworkToken =======/' | grep '[01-9a-f]\{10,\}' > tests/GNTAllocation.bin
 
 tests/GNTAllocation.abi: contracts/GNTAllocation.sol
-	solc --bin --abi --optimize contracts/GNTAllocation.sol | awk '/======= GNTAllocation =======/,0' | grep '\[.*\]' > tests/GNTAllocation.abi
+	solc --bin --abi --optimize contracts/GNTAllocation.sol | awk '/======= GNTAllocation =======/,/======= GolemNetworkToken =======/' | grep '\[.*\]' > tests/GNTAllocation.abi
 
 clean:
 	git checkout -- tests/GolemNetworkToken.bin tests/GolemNetworkToken.abi tests/GNTTargetToken.bin tests/GNTTargetToken.abi tests/MigrationAgent.bin tests/MigrationAgent.abi tests/ProxyAccount.bin tests/ProxyAccount.abi tests/ProxyFactoryAccount.bin tests/ProxyFactoryAccount.abi tests/GNTAllocation.bin tests/GNTAllocation.abi

@@ -23,7 +23,7 @@ contract GolemNetworkToken {
     // The flag indicates if the GNT contract is in "funding" mode.
     bool fundingMode = true;
 
-    GNTAllocation lockedAllocation;
+    GNTAllocation public lockedAllocation;
     address public golemFactory;
 
     // The currect total token supply.
@@ -206,11 +206,6 @@ contract GolemNetworkToken {
         var ethValue = gntValue / tokenCreationRate;
         if (!msg.sender.send(ethValue)) throw;
         Refund(msg.sender, ethValue);
-    }
-
-    struct Dev {
-        address addr;
-        uint share;
     }
 
     // Creates additional 12% of tokens for the Factory and 6% for developers.
