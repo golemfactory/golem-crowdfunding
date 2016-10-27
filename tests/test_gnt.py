@@ -211,7 +211,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
             costs.append(m.gas())
         print(costs)
         assert max(costs) <= 86329
-        assert min(costs) >= 56246
+        assert min(costs) >= 56123
 
     def test_gas_for_migrate_half(self):
         factory_key = urandom(32)
@@ -235,7 +235,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
             costs.append(m.gas())
         print(costs)
         assert max(costs) <= 101329
-        assert min(costs) >= 71185
+        assert min(costs) >= 71123
 
     def test_gas_for_refund(self):
         addr, _ = self.deploy_contract(urandom(20), 0, 1)
