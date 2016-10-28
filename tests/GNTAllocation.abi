@@ -1,1 +1,0 @@
-[{"constant":false,"inputs":[{"name":"_tokensCreated","type":"uint256"}],"name":"allocate","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[],"name":"unlock","outputs":[{"name":"success","type":"bool"}],"payable":false,"type":"function"},{"inputs":[{"name":"_golemFactory","type":"address"}],"type":"constructor"}]
