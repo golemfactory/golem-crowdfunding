@@ -221,7 +221,6 @@ contract GolemNetworkToken {
         uint256 numLockedTokens = totalTokens * percentTokensLocked / (100 - percentTokensLocked);
 
         balances[lockedAllocation] += numLockedTokens;
-        lockedAllocation.allocate(numLockedTokens);
         totalTokens += numLockedTokens;
     }
 }

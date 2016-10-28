@@ -44,18 +44,16 @@ contract GNTAllocation {
         allocations[0xde22] =   25;
     }
 
-    // FIXME: Rename to something like "notifyFundingFinalized()"?
-    function allocate(uint256 _tokensCreated) external {
-        if (msg.sender != address(gnt)) throw;
-
-        tokensCreated = _tokensCreated;
-    }
-
-
     // Allows developer to unlock its allocated tokens by transfering them back
     // to its address.
     function unlock() external {
         if (now < unlockedAt) throw;
+
+        // First unlock attempt.
+        if (tokensCreated == 0) {
+            // Fetch number of total tokens locked.
+            tokensCreated = gnt.balanceOf(this);
+        }
 
         var allocation = allocations[msg.sender];
         allocations[msg.sender] = 0;

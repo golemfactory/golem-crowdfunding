@@ -381,7 +381,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         m = self.monitor(0)
         self.c.finalize(sender=tester.k0)
         g = m.gas()
-        assert g == 104700
+        assert g == 84166
 
     def test_transfer_enabled_after_end_block(self):
         founder = tester.accounts[4]
