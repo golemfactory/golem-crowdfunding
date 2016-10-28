@@ -187,20 +187,26 @@ contract GolemNetworkToken {
     }
 
     // If cap was reached or crowdfunding has ended then:
-    // Transfer ETH to the golemFactory address
-    // Create GNT for the golemFactory (representing the company)
-    // Create GNT for the developers
-    // Update GNT state (number of tokens)
+    // transfer ETH to the Golem Factory address,
+    // create GNT for the golemFactory (representing the company,
+    // create GNT for the developers.
     function finalize() inFundingSuccess external {
         // Switch to Operational state. This is the only place this can happen.
         fundingMode = false;
 
-        // 1. Transfer ETH to the golemFactory address
+        // Transfer ETH to the Golem Factory address.
         if (!golemFactory.send(this.balance)) throw;
 
         // Create additional GNT for the Factory (representing the company)
-        // and developers.
-        createAdditionalTokens();
+        // and developers as a 18% of total number of tokens.
+        // All additional tokens are transfered to the account controller by
+        // GNTAllocation contract which will not allow using them for 6 months.
+        uint256 percentOfTotal = 18;
+        uint256 additionalTokens =
+            totalTokens * percentOfTotal / (100 - percentOfTotal);
+        totalTokens += additionalTokens;
+        balances[lockedAllocation] += additionalTokens;
+        Transfer(0, lockedAllocation, additionalTokens);
     }
 
     function refund() inFundingFailure external {
@@ -212,15 +218,5 @@ contract GolemNetworkToken {
         var ethValue = gntValue / tokenCreationRate;
         if (!msg.sender.send(ethValue)) throw;
         Refund(msg.sender, ethValue);
-    }
-
-    // Creates additional 12% of tokens for the Factory and 6% for developers.
-    function createAdditionalTokens() internal {
-        // this calculation could be moved to GNTAllocation function
-        uint256 percentTokensLocked = 18;
-        uint256 numLockedTokens = totalTokens * percentTokensLocked / (100 - percentTokensLocked);
-
-        balances[lockedAllocation] += numLockedTokens;
-        totalTokens += numLockedTokens;
     }
 }
