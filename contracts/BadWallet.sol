@@ -6,7 +6,7 @@ contract BadWallet {
     uint16 extra_work = 0; // amount of work to be done when accepting payment
     uint16 public out_i;
     address wallet;
-    
+
     function BadWallet() {
     }
 
@@ -21,16 +21,17 @@ contract BadWallet {
     function get_extra_work() returns (uint16 a) {
         return extra_work;
     }
-    
+
     function deploy_contract(address _golemFactory, uint256 _fundingStartBlock,
                              uint256 _fundingEndBlock)
         returns (address a) {
 
         wallet = new Source.GolemNetworkToken(_golemFactory, _golemFactory,
-                                              _fundingStartBlock, _fundingEndBlock);
+                                              _fundingStartBlock,
+                                              _fundingEndBlock);
         return wallet;
     }
-    
+
     function finalize(address _crowdfundingContract) {
         Source.GolemNetworkToken(_crowdfundingContract).finalize();
     }
