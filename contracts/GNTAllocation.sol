@@ -4,16 +4,23 @@ import "./Token.sol";
 
 contract GNTAllocation {
     mapping (address => uint256) allocations;
-
-    uint256 constant SHARES = 18 / 6 * 1000;
+    // Number of shares to distribute among developers and Golem Factory.
+    // Value of each share is expressed in GNT and based on the number
+    // of additional created tokens.
+    // This number of shares is based on the percentage of additional tokens;
+    // the magnitude was chosen to minimize rounding errors.
+    uint256 constant SHARES = 18 / 6 * 10000 / 10;
 
     address golemFactory;
 
     GolemNetworkToken gnt;
     uint256 unlockedAt;
 
-    uint256 tokensCreated = 0;
+    // Value of a single share expressed in GNT
     uint256 tokensPerShare = 0;
+    // Number of GNT that will remain after
+    // assigning all shares, due to rounding errors.
+    uint256 sharesRemainder = 0;
 
     function GNTAllocation(address _golemFactory) internal {
         gnt = GolemNetworkToken(msg.sender);
@@ -21,10 +28,10 @@ contract GNTAllocation {
         unlockedAt = now + 6 * 30 days;
 
         // reserved for factory
-        allocations[golemFactory] = 2000; // 12 * SHARES / 18
+        allocations[_golemFactory] = 2000; // 12 * SHARES / 18 * 10
 
         // developers
-        allocations[0xde00] = 250; // 0.25 * 6 * SHARES / 18
+        allocations[0xde00] = 250; // 0.25 * 6 * SHARES / 18 * 10
         allocations[0xde01] =  73; // ...
         allocations[0xde02] =  73;
         allocations[0xde03] =  73;
@@ -55,20 +62,23 @@ contract GNTAllocation {
         if (now < unlockedAt) throw;
 
         // First unlock attempt.
-        if (tokensCreated == 0) {
+        if (tokensPerShare == 0) {
             // Fetch number of total tokens locked.
-            tokensCreated = gnt.balanceOf(this);
+            var tokensCreated = gnt.balanceOf(this);
+            // Calculate the value of each share.
             tokensPerShare = tokensCreated / SHARES;
+            // Calculate the number of tokens remaining.
+            sharesRemainder = tokensCreated % SHARES;
         }
 
         var allocation = allocations[msg.sender];
         allocations[msg.sender] = 0;
         var toTransfer = tokensPerShare * allocation;
 
-        // If there are tokens left to transfer for Golem Factory
-        // increment by the number of rounding error tokens
+        // If there are tokens left to transfer for Golem Factory,
+        // include the remaining tokens.
         if (msg.sender == golemFactory && toTransfer > 0)
-            toTransfer += tokensCreated % SHARES;
+            toTransfer += sharesRemainder;
 
         // Will fail if allocation is 0.
         if (!gnt.transfer(msg.sender, toTransfer)) throw;
