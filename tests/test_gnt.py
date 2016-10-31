@@ -953,12 +953,15 @@ class GNTCrowdfundingTest(unittest.TestCase):
             expected = dev_shares[i] * tokens_devs / 10000
 
             assert_error_range(balance, expected)
-            balance_sum += expected
+            balance_sum += balance
 
         assert_error_range(tokens_devs, balance_sum)
 
-        assert tokens_ca - 25 <= contract.balanceOf(factory) <= tokens_ca
-        assert 0 <= contract.balanceOf(allocation.address) <= 25
+        factory_balance = contract.balanceOf(factory)
+        tokens_left = tokens_extra - factory_balance - balance_sum
+
+        assert contract.balanceOf(factory) == tokens_ca
+        assert contract.balanceOf(allocation.address) == tokens_left
 
     # assumes post funding period
     def _finalize_funding(self, addr, expected_supply):
