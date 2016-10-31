@@ -1,4 +1,4 @@
-pragma solidity ^0.4.1;
+pragma solidity ^0.4.3;
 
 import * as Source from "./Token.sol";
 
