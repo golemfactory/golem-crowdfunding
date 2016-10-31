@@ -42,7 +42,7 @@ ALLOC_CONTRACT_PATH = os.path.join('contracts', 'GNTAllocation.sol')
 
 IMPORT_TOKEN_REGEX = '(import "\.\/Token\.sol";).*'
 IMPORT_ALLOC_REGEX = '(import "\.\/GNTAllocation\.sol";).*'
-DEV_ADDR_REGEX = "\s*allocations\[([a-zA-Z0-9]+)\].*"
+DEV_ADDR_REGEX = "\s*allocations\[(0x[a-zA-Z0-9]+)\].*"
 
 
 @contextmanager
@@ -221,7 +221,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.t = tester.ABIContract(self.state, TARGET_ABI, addr)
         return addr, owner.gas()
 
-    def deploy_contract_and_accounts(self, n_devs):
+    def deploy_contract_and_accounts(self, n_devs, creator_idx=9):
         dev_keys = []
         dev_accounts = []
 
@@ -246,7 +246,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         dev_addresses = [ContractHelper.dev_address(a) for a in dev_accounts]
 
         # deploy the gnt contract with updated developer accounts
-        contract, _, _ = deploy_gnt(self.state, tester.accounts[9], dev_addresses, 2, 2)
+        contract, _, _ = deploy_gnt(self.state, tester.accounts[creator_idx], dev_addresses, 2, 2)
         allocation = tester.ABIContract(self.state, ALLOC_ABI, contract.lockedAllocation())
 
         return contract, allocation, dev_keys, dev_accounts
@@ -269,7 +269,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         founder = tester.accounts[2]
         c, g = self.deploy_contract(founder, 5, 105)
         assert len(c) == 20
-        assert g <= 1549227
+        assert g <= 1589919
         assert self.contract_balance() == 0
         assert decode_hex(self.c.golemFactory()) == founder
         assert not self.c.fundingActive()
@@ -887,7 +887,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
     def test_finalize_and_unlock(self):
 
         dev_shares = [2500, 730, 730, 730, 730, 730, 630, 630, 630, 630, 310,
-                      153, 150, 100, 100, 100, 70, 70, 70, 70, 70, 42, 25]
+                      150, 150, 100, 100, 100, 70, 70, 70, 70, 70, 40, 30]
 
         n_devs = len(dev_shares)
         contract, allocation, dev_keys, dev_accounts = self.deploy_contract_and_accounts(n_devs)
@@ -911,14 +911,18 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         total_tokens = contract.totalSupply()
 
-        contract.finalize()
-
-        ca_percent, devs_percent = 12, 6
-        sum_percent = ca_percent + devs_percent
+        factory_percent, devs_percent = 12, 6
+        sum_percent = factory_percent + devs_percent
 
         tokens_extra = total_tokens * sum_percent / (100 - sum_percent)
-        tokens_ca = tokens_extra * ca_percent / sum_percent
-        tokens_devs = tokens_extra - tokens_ca
+        tokens_factory = tokens_extra * factory_percent / sum_percent
+        tokens_devs = tokens_extra - tokens_factory
+
+        shares = 18 / 6 * 1000
+        tokens_rounding = tokens_extra % shares
+
+        contract.finalize()
+        assert contract.totalSupply() == total_tokens + tokens_extra
 
         # ---------------
         #   PRE UNLOCK
@@ -934,7 +938,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         #    UNLOCKED
         # ---------------
         self.state.mine(1)
-        self.state.block.timestamp += 1 * 10 ** 8
+        self.state.block.timestamp += 10 ** 8
 
         balance_sum = 0
 
@@ -942,7 +946,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         with self.assertRaises(TransactionFailed):
             allocation.unlock(sender=tester.k9)
 
-        def assert_error_range(_value, _expected, n=1):
+        def assert_error_range(_value, _expected, n=2):
             magnitude = int(math.log10(_value)) if _value else 1
             err = _value / (10 ** (magnitude - n))
             assert _expected - err <= _value <= _expected + err
@@ -957,9 +961,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         assert_error_range(tokens_devs, balance_sum)
 
-        assert contract.balanceOf(factory) == tokens_ca
-        # FIXME: Fix the GNTAllocation contract to transfer out all tokens.
         assert contract.balanceOf(allocation.address) == 0
+        assert tokens_factory <= contract.balanceOf(factory) <= tokens_factory + tokens_rounding
 
     # assumes post funding period
     def _finalize_funding(self, addr, expected_supply):
