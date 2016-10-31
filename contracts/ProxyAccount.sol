@@ -1,4 +1,4 @@
-pragma solidity ^0.4.1;
+pragma solidity ^0.4.3;
 
 import "./Token.sol";
 
@@ -58,9 +58,9 @@ contract TimeLockedGolemFactoryProxyAccount is TimeLockedGNTProxyAccount {
 
     function TimeLockedGolemFactoryProxyAccount(uint256 _availableAfter) TimeLockedGNTProxyAccount(_availableAfter) {
     }
-    
+
     // Modifiers
-    
+
     modifier gntOnly {
         if (msg.sender != address(gnt)) throw;
         _;
@@ -77,13 +77,13 @@ contract TimeLockedGolemFactoryProxyAccount is TimeLockedGNTProxyAccount {
         gnt.setMigrationAgent(_agent);
     }
 
-    // Default function - allow transfers from the GNT contract only  
-    
+    // Default function - allow transfers from the GNT contract only
+
     function() gntOnly payable {
     }
 
     // Withdraw - transfer ETH to to the Golem Factory
-    
+
     function withdraw() ownerOnly {
         if (!owner.send(this.balance)) throw;
     }
