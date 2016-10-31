@@ -44,7 +44,7 @@ contract GNTAllocation {
         allocations[0xde22] =   25;
     }
 
-    // Allows developer to unlock its allocated tokens by transfering them back
+    // Allows developer to unlock its allocated tokens by transferring them back
     // to developer's address.
     function unlock() external {
         if (now < unlockedAt) throw;
@@ -57,15 +57,7 @@ contract GNTAllocation {
 
         var allocation = allocations[msg.sender];
         allocations[msg.sender] = 0;
-
         var toTransfer = tokensCreated * allocation / DIVISOR;
-
-        // Handle rounding leftovers
-        // FIXME: We can also selfdestruct the contract after unlocking
-        //        last account.
-        uint256 tokensRemaining = gnt.balanceOf(this);
-        if ((tokensRemaining - toTransfer) < 25)
-            toTransfer = tokensRemaining;
 
         // Will fail if allocation is 0.
         if (!gnt.transfer(msg.sender, toTransfer)) throw;
