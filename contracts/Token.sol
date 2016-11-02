@@ -17,8 +17,8 @@ contract GolemNetworkToken {
     uint256 public constant tokenCreationCap = 820000 ether * tokenCreationRate;
     uint256 public constant tokenCreationMin = 150000 ether * tokenCreationRate;
 
-    uint256 fundingStartBlock;
-    uint256 fundingEndBlock;
+    uint256 public fundingStartBlock;
+    uint256 public fundingEndBlock;
 
     // The flag indicates if the GNT contract is in "funding" mode.
     bool fundingMode = true;
