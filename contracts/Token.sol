@@ -31,7 +31,7 @@ contract GolemNetworkToken {
 
     GNTAllocation public lockedAllocation;
 
-    // The currect total token supply.
+    // The current total token supply.
     uint256 totalTokens;
 
     mapping (address => uint256) balances;
@@ -42,55 +42,6 @@ contract GolemNetworkToken {
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
     event Migrate(address indexed _from, address indexed _to, uint256 _value);
     event Refund(address indexed _from, uint256 _value);
-
-    // Checks if in Funding Active state. Aborts transaction otherwise.
-    modifier inFundingActive {
-        if (!fundingMode) throw;
-        // FundingActive: b ≥ Start and b ≤ End and t < Max
-        if (block.number < fundingStartBlock ||
-            block.number > fundingEndBlock ||
-            totalTokens >= tokenCreationCap) throw;
-        _;
-    }
-
-    // Checks if in Funding Failure state. Aborts transaction otherwise.
-    modifier inFundingFailure {
-        if (!fundingMode) throw;
-        // FundingFailure: b > End and t < Min
-        if (block.number <= fundingEndBlock ||
-            totalTokens >= tokenCreationMin) throw;
-        _;
-    }
-
-    // Checks if in Funding Success state. Aborts transaction otherwise.
-    modifier inFundingSuccess {
-        if (!fundingMode) throw;
-        // FundingSuccess: (b > End and t ≥ Min) or t ≥ Max
-        if ((block.number <= fundingEndBlock ||
-             totalTokens < tokenCreationMin) &&
-            totalTokens < tokenCreationCap) throw;
-        _;
-    }
-
-    // Checks if in Operational state. Aborts transaction otherwise.
-    modifier inOperational {
-        if (fundingMode) throw;
-        _;
-    }
-
-    // Checks if in Operational Normal state. Aborts transaction otherwise.
-    modifier inNormal {
-        if (fundingMode) throw;
-        if (migrationAgent != 0) throw;
-        _;
-    }
-
-    // Checks if in Operational Migration state. Aborts transaction otherwise.
-    modifier inMigration {
-        if (fundingMode) throw;
-        if (migrationAgent == 0) throw;
-        _;
-    }
 
     function GolemNetworkToken(address _golemFactory,
                                address _migrationMaster,
@@ -103,7 +54,13 @@ contract GolemNetworkToken {
         fundingEndBlock = _fundingEndBlock;
     }
 
-    function transfer(address _to, uint256 _value) inOperational returns (bool) {
+    // Transfer GNT tokens from sender's account to provided account address.
+    // This function is disabled during the funding.
+    // Required state: Operational
+    function transfer(address _to, uint256 _value) returns (bool) {
+        // Abort if not in Operational state.
+        if (fundingMode) throw;
+
         var senderBalance = balances[msg.sender];
         if (senderBalance >= _value && _value > 0) {
             senderBalance -= _value;
@@ -125,8 +82,14 @@ contract GolemNetworkToken {
 
     // Token migration support:
 
-    function migrate(uint256 _value) inMigration external {
-        if (_value == 0 || _value > balances[msg.sender]) throw;
+    function migrate(uint256 _value) external {
+        // Abort if not in Operational Migration state.
+        if (fundingMode) throw;
+        if (migrationAgent == 0) throw;
+
+        // Validate input value.
+        if (_value == 0) throw;
+        if (_value > balances[msg.sender]) throw;
 
         balances[msg.sender] -= _value;
         totalTokens -= _value;
@@ -135,7 +98,13 @@ contract GolemNetworkToken {
         Migrate(msg.sender, migrationAgent, _value);
     }
 
-    function setMigrationAgent(address _agent) inNormal external {
+    // Set address of migration target contract and enable migration process.
+    // Required state: Operational Normal
+    // State transition: -> Operational Migration
+    function setMigrationAgent(address _agent) external {
+        // Abort if not in Operational Normal state.
+        if (fundingMode) throw;
+        if (migrationAgent != 0) throw;
         if (msg.sender != migrationMaster) throw;
         migrationAgent = _agent;
     }
@@ -169,9 +138,19 @@ contract GolemNetworkToken {
         return !fundingMode;
     }
 
-    // Create tokens when funding is active
-    // Update state when funding period lapses and/or min/max funding occurs
-    function() payable inFundingActive external {
+    // Create tokens when funding is active.
+    // Required state: Funding Active
+    // State transition: -> Funding Success (only if cap reached)
+    function() payable external {
+        // Abort if not in Funding Active state.
+        // The checks are split (instead of using or operator) because it is
+        // cheaper this way.
+        if (!fundingMode) throw;
+        if (block.number < fundingStartBlock) throw;
+        if (block.number > fundingEndBlock) throw;
+        if (totalTokens >= tokenCreationCap) throw;
+
+        // Do not allow creating 0 tokens.
         if (msg.value == 0) throw;
 
         // Do not create more than cap
@@ -190,7 +169,15 @@ contract GolemNetworkToken {
     // transfer ETH to the Golem Factory address,
     // create GNT for the golemFactory (representing the company,
     // create GNT for the developers.
-    function finalize() inFundingSuccess external {
+    // Required state: Funding Success
+    // State transition: -> Operational Normal
+    function finalize() external {
+        // Abort if not in Funding Success state.
+        if (!fundingMode) throw;
+        if ((block.number <= fundingEndBlock ||
+             totalTokens < tokenCreationMin) &&
+            totalTokens < tokenCreationCap) throw;
+
         // Switch to Operational state. This is the only place this can happen.
         fundingMode = false;
 
@@ -209,7 +196,15 @@ contract GolemNetworkToken {
         Transfer(0, lockedAllocation, additionalTokens);
     }
 
-    function refund() inFundingFailure external {
+    // Get back the ether sent during the funding in case the funding has not
+    // reached the minimum level.
+    // Required state: Funding Failure
+    function refund() external {
+        // Abort if not in Funding Failure state.
+        if (!fundingMode) throw;
+        if (block.number <= fundingEndBlock) throw;
+        if (totalTokens >= tokenCreationMin) throw;
+
         var gntValue = balances[msg.sender];
         if (gntValue == 0) throw;
         balances[msg.sender] = 0;
