@@ -272,6 +272,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
         t = self.c.totalSupply()
         return n >= s and n <= e and t < m
 
+    def number_of_tokens_left(self):
+        return self.c.tokenCreationCap() - self.c.totalSupply();
+
 
     def test_initial_balance(self):
         founder = tester.accounts[8]
@@ -381,8 +384,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.c.refund(sender=k)
             costs.append(m.gas())
         print(costs)
-        assert max(costs) <= 25504
-        assert min(costs) >= 20252
+        assert max(costs) == 25482
+        assert min(costs) == 20241
 
     def test_gas_for_finalize(self):
         addr, _ = self.deploy_contract(urandom(20), 0, 1)
@@ -394,7 +397,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         m = self.monitor(0)
         self.c.finalize(sender=tester.k0)
         g = m.gas()
-        assert g == 86010
+        assert g == 85988
 
     def test_transfer_enabled_after_end_block(self):
         founder = tester.accounts[4]
@@ -495,7 +498,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         self.state.mine(1)
 
-        tokens_max = self.c.numberOfTokensLeft()
+        tokens_max = self.number_of_tokens_left()
 
         # invalid value
         with self.assertRaises(TransactionFailed):
@@ -504,12 +507,12 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # create 3 ether (value) worth of tokens for k1
         self.state.send(tester.k1, c_addr, value)
         numTokensCreated = value * self.c.tokenCreationRate()
-        assert self.c.numberOfTokensLeft() == tokens_max - numTokensCreated
+        assert self.number_of_tokens_left() == tokens_max - numTokensCreated
         assert self.c.totalSupply() == numTokensCreated
 
         # create 3 ether (value) worth of tokens for k2
         self.state.send(tester.k2, c_addr, value)
-        assert self.c.numberOfTokensLeft() == tokens_max - 2 * numTokensCreated
+        assert self.number_of_tokens_left() == tokens_max - 2 * numTokensCreated
         assert self.c.totalSupply() == 2 * numTokensCreated
 
         # issue remaining tokens, except 3 * "value" worth of tokens
@@ -517,7 +520,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.send(tester.k1, c_addr, value_max - 3 * value)
 
         # number of tokens remaining is equal to 1*value (*creationRate)
-        assert self.c.numberOfTokensLeft() == numTokensCreated
+        assert self.number_of_tokens_left() == numTokensCreated
         assert self.c.totalSupply() == tokens_max - numTokensCreated
 
         # more than available tokens
@@ -528,7 +531,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         # exact amount of available tokens
         self.state.send(tester.k1, c_addr, value)
-        assert self.c.numberOfTokensLeft() == 0
+        assert self.number_of_tokens_left() == 0
         assert self.c.totalSupply() == tokens_max
 
         # no tokens available
@@ -768,18 +771,6 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         assert source.totalSupply() == supply_after_finalization - total * creation_rate
         assert target.totalSupply() == total * creation_rate
-
-    def test_number_of_tokens_left(self):
-        addr, _ = self.deploy_contract(tester.a0, 13, 42)
-        rate = self.c.tokenCreationRate()
-
-        self.state.mine(13)
-        tokens_max = self.c.numberOfTokensLeft()
-        self.state.send(tester.k1, addr, tokens_max / rate / 2)
-        assert self.c.numberOfTokensLeft() > 0
-
-        self.state.mine(42 - 13 + 1)
-        assert self.c.numberOfTokensLeft() == 0
 
     def test_send_raw_data_no_value(self):
         random_data = urandom(4)

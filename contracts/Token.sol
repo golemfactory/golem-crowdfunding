@@ -147,13 +147,6 @@ contract GolemNetworkToken {
 
     // Crowdfunding:
 
-    // Helper function to get number of tokens left during the funding.
-    function numberOfTokensLeft() constant external returns (uint256) {
-        if (!fundingMode) return 0;
-        if (block.number > fundingEndBlock) return 0;
-        return tokenCreationCap - totalTokens;
-    }
-
     function finalized() constant external returns (bool) {
         return !fundingMode;
     }
