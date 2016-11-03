@@ -262,7 +262,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
     def is_funding_active(self):
         """ Checks if the crowdfunding contract is in Funding Active state."""
-        if self.c.finalized():
+        if not self.c.funding():
             return False
 
         n = self.state.block.number
@@ -403,10 +403,10 @@ class GNTCrowdfundingTest(unittest.TestCase):
         founder = tester.accounts[4]
         addr, _ = self.deploy_contract(founder, 3, 13)
         assert self.state.block.number == 0
-        assert not self.c.finalized()
+        assert self.c.funding()
         for _ in range(13):
             self.state.mine()
-            assert not self.c.finalized()
+            assert self.c.funding()
         assert self.state.block.number == 13
 
         # ensure min funding met
@@ -416,27 +416,27 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         for _ in range(11):
             self.state.mine()
-            assert self.c.finalized()
+            assert not self.c.funding()
 
     def test_transfer_enabled_after_max_fund_reached(self):
         founder = tester.accounts[2]
         addr, _ = self.deploy_contract(founder, 3, 7)
-        assert not self.c.finalized()
+        assert self.c.funding()
         for _ in range(3):
             self.state.mine()
-            assert not self.c.finalized()
+            assert self.c.funding()
 
         assert self.state.block.number is 3
         self.state.send(tester.keys[0], addr, 11)
-        assert not self.c.finalized()
+        assert self.c.funding()
         self.state.send(tester.keys[1], addr, self.c.tokenCreationCap() / self.c.tokenCreationRate() - 11)
-        assert not self.c.finalized()
+        assert self.c.funding()
         for _ in range(8):
             self.state.mine()
-            assert not self.c.finalized()
+            assert self.c.funding()
         # Transfer is enabled after the funding is finalized.
         self.c.finalize(sender=tester.k5)
-        assert self.c.finalized()
+        assert not self.c.funding()
 
     def test_total_supply(self):
         founder = tester.accounts[7]
@@ -561,7 +561,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.balance_of(1) == tokens
 
         # At this point a1 has GNT but cannot transfer them.
-        assert not self.c.finalized()
+        assert self.c.funding()
 
         with self.event_listener(self.c, self.state) as listener:
             with self.assertRaises(TransactionFailed):
@@ -574,7 +574,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.is_funding_active() is False
 
         self.c.finalize()
-        assert self.c.finalized()
+        assert not self.c.funding()
 
         with self.event_listener(self.c, self.state) as listener:
             assert self.transfer(tester.k1, tester.a2, tokens)
@@ -598,7 +598,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.mine(1)
         with self.assertRaises(ContractCreationFailed):
             self.deploy_migration_contract(s_addr)
-        assert not source.finalized()
+        assert source.funding()
 
         # funding
         self.state.mine(1)
@@ -606,7 +606,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         with self.assertRaises(ContractCreationFailed):
             self.deploy_migration_contract(s_addr)
-        assert not source.finalized()
+        assert source.funding()
 
         # post funding
         self.state.mine(1)
@@ -614,9 +614,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
         with self.assertRaises(ContractCreationFailed):
             self.deploy_migration_contract(s_addr)
 
-        assert not source.finalized()
+        assert source.funding()
         self._finalize_funding(s_addr, expected_supply=tokens)
-        assert source.finalized()
+        assert not source.funding()
 
         # migration and target token contracts
         m_addr, _ = self.deploy_migration_contract(s_addr)
@@ -685,9 +685,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # post funding
         self.state.mine(1)
 
-        assert not source.finalized()
+        assert source.funding()
         self._finalize_funding(s_addr, expected_supply=tokens)
-        assert source.finalized()
+        assert not source.funding()
 
         # migration and target token contracts
         m_addr, _ = self.deploy_migration_contract(s_addr)

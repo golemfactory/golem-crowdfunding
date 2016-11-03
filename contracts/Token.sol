@@ -20,8 +20,8 @@ contract GolemNetworkToken {
     uint256 public fundingStartBlock;
     uint256 public fundingEndBlock;
 
-    // The flag indicates if the GNT contract is in "funding" mode.
-    bool fundingMode = true;
+    // The flag indicates if the GNT contract is in Funding state.
+    bool public funding = true;
 
     // Receives ETH and its own GNT endowment.
     address public golemFactory;
@@ -59,7 +59,7 @@ contract GolemNetworkToken {
     // Required state: Operational
     function transfer(address _to, uint256 _value) returns (bool) {
         // Abort if not in Operational state.
-        if (fundingMode) throw;
+        if (funding) throw;
 
         var senderBalance = balances[msg.sender];
         if (senderBalance >= _value && _value > 0) {
@@ -84,7 +84,7 @@ contract GolemNetworkToken {
 
     function migrate(uint256 _value) external {
         // Abort if not in Operational Migration state.
-        if (fundingMode) throw;
+        if (funding) throw;
         if (migrationAgent == 0) throw;
 
         // Validate input value.
@@ -103,7 +103,7 @@ contract GolemNetworkToken {
     // State transition: -> Operational Migration
     function setMigrationAgent(address _agent) external {
         // Abort if not in Operational Normal state.
-        if (fundingMode) throw;
+        if (funding) throw;
         if (migrationAgent != 0) throw;
         if (msg.sender != migrationMaster) throw;
         migrationAgent = _agent;
@@ -116,10 +116,6 @@ contract GolemNetworkToken {
 
     // Crowdfunding:
 
-    function finalized() constant external returns (bool) {
-        return !fundingMode;
-    }
-
     // Create tokens when funding is active.
     // Required state: Funding Active
     // State transition: -> Funding Success (only if cap reached)
@@ -127,7 +123,7 @@ contract GolemNetworkToken {
         // Abort if not in Funding Active state.
         // The checks are split (instead of using or operator) because it is
         // cheaper this way.
-        if (!fundingMode) throw;
+        if (!funding) throw;
         if (block.number < fundingStartBlock) throw;
         if (block.number > fundingEndBlock) throw;
         if (totalTokens >= tokenCreationCap) throw;
@@ -155,13 +151,13 @@ contract GolemNetworkToken {
     // State transition: -> Operational Normal
     function finalize() external {
         // Abort if not in Funding Success state.
-        if (!fundingMode) throw;
+        if (!funding) throw;
         if ((block.number <= fundingEndBlock ||
              totalTokens < tokenCreationMin) &&
             totalTokens < tokenCreationCap) throw;
 
         // Switch to Operational state. This is the only place this can happen.
-        fundingMode = false;
+        funding = false;
 
         // Transfer ETH to the Golem Factory address.
         if (!golemFactory.send(this.balance)) throw;
@@ -183,7 +179,7 @@ contract GolemNetworkToken {
     // Required state: Funding Failure
     function refund() external {
         // Abort if not in Funding Failure state.
-        if (!fundingMode) throw;
+        if (!funding) throw;
         if (block.number <= fundingEndBlock) throw;
         if (totalTokens >= tokenCreationMin) throw;
 

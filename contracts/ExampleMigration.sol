@@ -67,7 +67,7 @@ contract MigrationAgent {
         owner = msg.sender;
         gntSourceToken = _gntSourceToken;
 
-        if (!Source.GolemNetworkToken(gntSourceToken).finalized()) throw;
+        if (Source.GolemNetworkToken(gntSourceToken).funding()) throw;
 
         tokenSupply = Source.GolemNetworkToken(gntSourceToken).totalSupply();
     }
