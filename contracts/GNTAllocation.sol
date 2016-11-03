@@ -55,7 +55,7 @@ contract GNTAllocation {
     /**
      * @dev Allows developer to unlock its allocated tokens by transferring them back
      * to developer's address.
-	 */
+     */
     function unlock() external {
         if (now < unlockedAt) throw;
 

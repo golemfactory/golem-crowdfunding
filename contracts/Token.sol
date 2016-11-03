@@ -62,10 +62,10 @@ contract GolemNetworkToken {
      * @notice Transfer GNT tokens from sender's account to provided account address.
      * @dev This function is disabled during the funding.
      * Required state: Operational
-	 * @param _to The address of the tokens recipient
-	 * @param _value The amount of token to be transferred
-	 * @return Whether the transfer was successful or not
-	 */
+     * @param _to The address of the tokens recipient
+     * @param _value The amount of token to be transferred
+     * @return Whether the transfer was successful or not
+     */
     function transfer(address _to, uint256 _value) returns (bool) {
         // Abort if not in Operational state.
         if (fundingMode) throw;
@@ -91,11 +91,11 @@ contract GolemNetworkToken {
 
     // Token migration support:
 
-	/**
-	 * @notice Migrate tokens to the new token contract.
-	 * @dev Required state: Operational Migration
-	 * @param _value The amount of token to be migrated
-	 */
+    /**
+     * @notice Migrate tokens to the new token contract.
+     * @dev Required state: Operational Migration
+     * @param _value The amount of token to be migrated
+     */
     function migrate(uint256 _value) external {
         // Abort if not in Operational Migration state.
         if (fundingMode) throw;
@@ -116,8 +116,8 @@ contract GolemNetworkToken {
      * @dev Set address of migration target contract and enable migration process.
      * Required state: Operational Normal
      * State transition: -> Operational Migration
-	 * @param _agent The address of the MigrationAgent contract 
-	 */
+     * @param _agent The address of the MigrationAgent contract 
+     */
     function setMigrationAgent(address _agent) external {
         // Abort if not in Operational Normal state.
         if (fundingMode) throw;
@@ -159,7 +159,7 @@ contract GolemNetworkToken {
      * @notice Create tokens when funding is active.
      * @dev Required state: Funding Active
      * @dev State transition: -> Funding Success (only if cap reached)
-	 */
+     */
     function() payable external {
         // Abort if not in Funding Active state.
         // The checks are split (instead of using or operator) because it is
@@ -185,13 +185,13 @@ contract GolemNetworkToken {
     }
 
     /** 
-	 * @dev  If cap was reached or crowdfunding has ended then:
+     * @dev  If cap was reached or crowdfunding has ended then:
      * transfer ETH to the Golem Factory address,
      * create GNT for the golemFactory (representing the company,
      * create GNT for the developers.
      * Required state: Funding Success
      * State transition: -> Operational Normal
-	 */
+     */
     function finalize() external {
         // Abort if not in Funding Success state.
         if (!fundingMode) throw;
@@ -218,10 +218,10 @@ contract GolemNetworkToken {
     }
 
     /** 
-	 * @notice Get back the ether sent during the funding in case the funding has not
+     * @notice Get back the ether sent during the funding in case the funding has not
      * reached the minimum level.
      * @dev Required state: Funding Failure
-	 */
+     */
     function refund() external {
         // Abort if not in Funding Failure state.
         if (!fundingMode) throw;
