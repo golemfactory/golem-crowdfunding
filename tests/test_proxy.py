@@ -10,18 +10,18 @@ from rlp.utils_py2 import decode_hex
 
 from test_gnt import ContractHelper, deploy_gnt
 
-GNT_CONTRACT_PATH = os.path.join('contracts', 'Token.sol')
+GNT_CONTRACT_PATH = os.path.join('contracts', 'GolemNetworkToken.sol')
 ALLOC_CONTRACT_PATH = os.path.join('contracts', 'GNTAllocation.sol')
 
 IMPORT_TOKEN_REGEX = '(import "\.\/Token\.sol";).*'
 IMPORT_ALLOC_REGEX = '(import "\.\/GNTAllocation\.sol";).*'
 DEV_ADDR_REGEX = "\s*allocations\[([a-zA-Z0-9]+)\].*"
 
-PROXY_INIT = decode_hex(open('tests/ProxyAccount.bin', 'r').read().rstrip())
-PROXY_ABI = open('tests/ProxyAccount.abi', 'r').read()
+PROXY_INIT = decode_hex(open('tests/TimeLockedGNTProxyAccount.bin', 'r').read().rstrip())
+PROXY_ABI = open('tests/TimeLockedGNTProxyAccount.abi', 'r').read()
 
-PROXY_FACTORY_INIT = decode_hex(open('tests/ProxyFactoryAccount.bin', 'r').read().rstrip())
-PROXY_FACTORY_ABI = open('tests/ProxyFactoryAccount.abi', 'r').read()
+PROXY_FACTORY_INIT = decode_hex(open('tests/TimeLockedGolemFactoryProxyAccount.bin', 'r').read().rstrip())
+PROXY_FACTORY_ABI = open('tests/TimeLockedGolemFactoryProxyAccount.abi', 'r').read()
 
 MIGRATION_INIT = decode_hex(open('tests/MigrationAgent.bin', 'r').read().rstrip())
 MIGRATION_ABI = open('tests/MigrationAgent.abi', 'r').read()
