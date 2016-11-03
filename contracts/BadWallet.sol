@@ -1,6 +1,6 @@
 pragma solidity ^0.4.4;
 
-import * as Source from "./Token.sol";
+import "./GolemNetworkToken.sol";
 
 contract BadWallet {
     uint16 extra_work = 0; // amount of work to be done when accepting payment
@@ -26,14 +26,14 @@ contract BadWallet {
                              uint256 _fundingEndBlock)
         returns (address a) {
 
-        wallet = new Source.GolemNetworkToken(_golemFactory, _golemFactory,
-                                              _fundingStartBlock,
-                                              _fundingEndBlock);
+        wallet = new GolemNetworkToken(_golemFactory, _golemFactory,
+                                       _fundingStartBlock,
+                                       _fundingEndBlock);
         return wallet;
     }
 
     function finalize(address _crowdfundingContract) {
-        Source.GolemNetworkToken(_crowdfundingContract).finalize();
+        GolemNetworkToken(_crowdfundingContract).finalize();
     }
 
     /* trap function which will burn gas, causing send to fail */

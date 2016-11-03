@@ -1,6 +1,6 @@
 pragma solidity ^0.4.4;
 
-import "./Token.sol";
+import "./TimeLockedGNTProxyAccount.sol";
 
 contract TimeLockedGolemFactoryProxyAccount is TimeLockedGNTProxyAccount {
 

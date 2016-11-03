@@ -1,6 +1,7 @@
 pragma solidity ^0.4.4;
 
-import * as Source from "./Token.sol";
+import "./GolemNetworkToken.sol";
+import "./GNTTargetToken.sol";
 
 //Test the whole process against this: https://www.kingoftheether.com/contract-safety-checklist.html
 contract MigrationAgent {
@@ -15,14 +16,14 @@ contract MigrationAgent {
         owner = msg.sender;
         gntSourceToken = _gntSourceToken;
 
-        if (Source.GolemNetworkToken(gntSourceToken).funding()) throw;
+        if (GolemNetworkToken(gntSourceToken).funding()) throw;
 
-        tokenSupply = Source.GolemNetworkToken(gntSourceToken).totalSupply();
+        tokenSupply = GolemNetworkToken(gntSourceToken).totalSupply();
     }
 
     function safetyInvariantCheck(uint256 _value) private {
         if (gntTargetToken == 0) throw;
-        if (Source.GolemNetworkToken(gntSourceToken).totalSupply() + GNTTargetToken(gntTargetToken).totalSupply() != tokenSupply - _value) throw;
+        if (GolemNetworkToken(gntSourceToken).totalSupply() + GNTTargetToken(gntTargetToken).totalSupply() != tokenSupply - _value) throw;
     }
 
     function setTargetToken(address _gntTargetToken) {
