@@ -260,6 +260,19 @@ class GNTCrowdfundingTest(unittest.TestCase):
     def transfer(self, sender, to, value):
         return self.c.transfer(to, value, sender=sender)
 
+    def is_funding_active(self):
+        """ Checks if the crowdfunding contract is in Funding Active state."""
+        if self.c.finalized():
+            return False
+
+        n = self.state.block.number
+        s = self.c.fundingStartBlock()
+        e = self.c.fundingEndBlock()
+        m = self.c.tokenCreationCap()
+        t = self.c.totalSupply()
+        return n >= s and n <= e and t < m
+
+
     def test_initial_balance(self):
         founder = tester.accounts[8]
         self.deploy_contract(founder, 5, 105)
@@ -272,7 +285,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert g <= 1549227
         assert self.contract_balance() == 0
         assert decode_hex(self.c.golemFactory()) == founder
-        assert not self.c.fundingActive()
+        assert not self.is_funding_active()
 
     def test_gas_for_create(self):
         self.state.block.coinbase = urandom(20)
@@ -368,8 +381,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.c.refund(sender=k)
             costs.append(m.gas())
         print(costs)
-        assert max(costs) <= 25548
-        assert min(costs) >= 20263
+        assert max(costs) <= 25504
+        assert min(costs) >= 20252
 
     def test_gas_for_finalize(self):
         addr, _ = self.deploy_contract(urandom(20), 0, 1)
@@ -381,7 +394,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         m = self.monitor(0)
         self.c.finalize(sender=tester.k0)
         g = m.gas()
-        assert g == 86032
+        assert g == 86010
 
     def test_transfer_enabled_after_end_block(self):
         founder = tester.accounts[4]
@@ -511,7 +524,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.k2, c_addr, 2 * value)
 
-        assert self.c.fundingActive() is True
+        assert self.is_funding_active() is True
 
         # exact amount of available tokens
         self.state.send(tester.k1, c_addr, value)
@@ -526,10 +539,10 @@ class GNTCrowdfundingTest(unittest.TestCase):
     def test_transfer_locked(self):
         addr, _ = self.deploy_contract(tester.a0, 1, 1)
 
-        assert not self.c.fundingActive()
+        assert not self.is_funding_active()
 
         self.state.mine(1)
-        assert self.c.fundingActive()
+        assert self.is_funding_active()
         # Create tokens to meet minimum funding
         tokens = self.c.tokenCreationMin()
         value = tokens / self.c.tokenCreationRate()
@@ -555,7 +568,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # Funding has ended.
         self.state.mine(1)
         assert self.state.block.number is 2
-        assert self.c.fundingActive() is False
+        assert self.is_funding_active() is False
 
         self.c.finalize()
         assert self.c.finalized()
@@ -782,14 +795,14 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.contract_balance() == 0
 
         self.state.mine(7)
-        assert self.c.fundingActive()
+        assert self.is_funding_active()
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.k3, addr, value=0, evmdata=random_data)
         assert self.c.totalSupply() == 0
         assert self.contract_balance() == 0
 
         self.state.mine(3)
-        assert not self.c.fundingActive()
+        assert not self.is_funding_active()
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.k3, addr, value=0, evmdata=random_data)
         assert self.c.totalSupply() == 0
@@ -813,13 +826,13 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert self.contract_balance() == 0
 
         self.state.mine(7)
-        assert self.c.fundingActive()
+        assert self.is_funding_active()
         self.state.send(tester.k3, addr, random_value, evmdata=random_data)
         assert self.c.totalSupply() == random_value * self.c.tokenCreationRate()
         assert self.contract_balance() == random_value
 
         self.state.mine(3)
-        assert not self.c.fundingActive()
+        assert not self.is_funding_active()
         with self.assertRaises(TransactionFailed):
             self.state.send(tester.k4, addr, random_value, evmdata=random_data)
         assert self.c.totalSupply() == random_value * self.c.tokenCreationRate()
