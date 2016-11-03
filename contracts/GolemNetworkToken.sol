@@ -1,10 +1,7 @@
 pragma solidity ^0.4.4;
 
 import "./GNTAllocation.sol";
-
-contract MigrationAgent {
-    function migrateFrom(address _from, uint256 _value);
-}
+import "./MigrationAgent.sol";
 
 contract GolemNetworkToken {
     string public constant name = "Golem Network Token";
