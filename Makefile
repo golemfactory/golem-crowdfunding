@@ -1,4 +1,4 @@
-.PHONY: tests unit proxy clean compile
+.PHONY: tests unit proxy clean compile build
 
 SOLC      = solc
 BUILDDIR  = tests
@@ -11,6 +11,8 @@ TARGETS=$(addprefix $(BUILDDIR)/,$(OBJECTS))
 
 tests: compile
 	pytest tests
+
+build: compile
 
 compile: $(TARGETS)
 
