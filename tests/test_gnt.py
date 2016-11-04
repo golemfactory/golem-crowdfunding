@@ -96,16 +96,18 @@ class ContractHelper(object):
         return '0x' + addr.encode('hex')
 
 
-def deploy_gnt(state, factory, dev_addresses, start, end, creator_idx=9):
+def deploy_gnt(state, factory, start, end, creator_idx=9, replacements=None):
     alloc_helper = ContractHelper(ALLOC_CONTRACT_PATH)
     # remove import
     alloc_helper.sub([''], regex=IMPORT_TOKEN_REGEX)
-    # replace dev addresses
-    alloc_helper.sub(dev_addresses)
 
     # replace import with contract source
     gnt_helper = ContractHelper(GNT_CONTRACT_PATH, regex=IMPORT_ALLOC_REGEX)
     gnt_helper.sub([alloc_helper.source])
+
+    # replace values
+    for rep, regex in replacements:
+        gnt_helper.sub(rep, regex)
 
     gas_before = state.block.gas_used
 
@@ -116,6 +118,51 @@ def deploy_gnt(state, factory, dev_addresses, start, end, creator_idx=9):
                                       constructor_parameters=(factory, factory, start, end))
 
     return contract, contract.address, state.block.gas_used - gas_before
+
+
+def deploy_contract_and_accounts(state, n_devs, start=2, end=2, deploy_contract=True):
+    dev_keys = []
+    dev_accounts = []
+
+    milestone = int(math.log10(n_devs))
+    notify_step = milestone - 2
+    notify_value = 10 ** notify_step if notify_step > 0 else 1
+
+    # create developer accounts and keys in fashion of testers
+    for account_number in range(n_devs):
+        if account_number % notify_value == 0:
+            print "Account", account_number + 1, "out of", n_devs
+
+        dev_keys.append(sha3('dev' + to_string(account_number)))
+        dev_accounts.append(privtoaddr(dev_keys[-1]))
+
+    # developer balances
+    block = state.block
+
+    for i in range(n_devs):
+        if i % notify_value == 0:
+            print "Balance", i + 1, "out of", n_devs
+
+        addr, data = dev_accounts[i], {'wei': 10 ** 24}
+        if len(addr) == 40:
+            addr = decode_hex(addr)
+        assert len(addr) == 20
+        block.set_balance(addr, parse_int_or_hex(data['wei']))
+
+    block.commit_state()
+    block.state.db.commit()
+
+    dev_addresses = [ContractHelper.dev_address(a) for a in dev_accounts]
+
+    # deploy the gnt contract with updated developer accounts
+    if deploy_contract:
+        contract, _, _ = deploy_gnt(state, tester.accounts[9], start, end,
+                                    replacements=[(dev_addresses, DEV_ADDR_REGEX)])
+        allocation = tester.ABIContract(state, ALLOC_ABI, contract.lockedAllocation())
+    else:
+        contract, allocation = None, None
+
+    return contract, allocation, dev_keys, dev_accounts
 
 
 class GNTCrowdfundingTest(unittest.TestCase):
@@ -220,36 +267,6 @@ class GNTCrowdfundingTest(unittest.TestCase):
                               sender=owner.key)
         self.t = tester.ABIContract(self.state, TARGET_ABI, addr)
         return addr, owner.gas()
-
-    def deploy_contract_and_accounts(self, n_devs):
-        dev_keys = []
-        dev_accounts = []
-
-        # create developer accounts and keys in fashion of testers
-        for account_number in range(n_devs):
-            dev_keys.append(sha3('dev' + to_string(account_number)))
-            dev_accounts.append(privtoaddr(dev_keys[-1]))
-
-        # developer balances
-        block = self.state.block
-
-        for i in range(n_devs):
-            addr, data = dev_accounts[i], {'wei': 10 ** 24}
-            if len(addr) == 40:
-                addr = decode_hex(addr)
-            assert len(addr) == 20
-            block.set_balance(addr, parse_int_or_hex(data['wei']))
-
-        block.commit_state()
-        block.state.db.commit()
-
-        dev_addresses = [ContractHelper.dev_address(a) for a in dev_accounts]
-
-        # deploy the gnt contract with updated developer accounts
-        contract, _, _ = deploy_gnt(self.state, tester.accounts[9], dev_addresses, 2, 2)
-        allocation = tester.ABIContract(self.state, ALLOC_ABI, contract.lockedAllocation())
-
-        return contract, allocation, dev_keys, dev_accounts
 
     def contract_balance(self):
         return self.state.block.get_balance(self.c.address)
@@ -890,7 +907,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
                       153, 150, 100, 100, 100, 70, 70, 70, 70, 70, 42, 25]
 
         n_devs = len(dev_shares)
-        contract, allocation, dev_keys, dev_accounts = self.deploy_contract_and_accounts(n_devs)
+        contract, allocation, dev_keys, dev_accounts = deploy_contract_and_accounts(self.state, n_devs)
         factory = contract.golemFactory()
 
         # ---------------
@@ -977,6 +994,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.send(tester.k1, addr, value)
         assert self.c.totalSupply() == value * 1000
         self.state.mine(6)
+
+        lg = self.state.block.gas_used
         b = self.state.block.get_balance(tester.a1)
 
         with self.event_listener(self.c, self.state) as listener:
@@ -988,7 +1007,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
             assert not listener.events  # no more events
 
         refund = self.state.block.get_balance(tester.a1) - b
-        assert refund > value * 0.9999999999999999
+        assert refund == value - (self.state.block.gas_used - lg) * tester.gas_price
 
         b = self.state.block.get_balance(tester.a2)
         with self.assertRaises(TransactionFailed):
@@ -1122,8 +1141,8 @@ class GNTContractHelperTest(unittest.TestCase):
         assert alloc_helper.findall()[:6] == ['0xad00', '0xad01', '0xad02', '0xde03', '0xde04', '0xde05']
 
         # replace import with contract source
-        gnt_helper = ContractHelper(GNT_CONTRACT_PATH, regex=IMPORT_ALLOC_REGEX)
-        gnt_helper.sub([alloc_helper.source])
+        gnt_helper = ContractHelper(GNT_CONTRACT_PATH)
+        gnt_helper.sub([alloc_helper.source], regex=IMPORT_ALLOC_REGEX)
 
         state = tester.state()
         contract = state.abi_contract(gnt_helper.source, language='solidity', sender=tester.k0)
