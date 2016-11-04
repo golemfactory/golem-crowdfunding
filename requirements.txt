@@ -1,2 +1,2 @@
-ethereum
 pytest
+-e git+https://github.com/ethereum/pyethereum.git@22e96d2d621b9a4a70e832d2c5139e7298860576#egg=ethereum

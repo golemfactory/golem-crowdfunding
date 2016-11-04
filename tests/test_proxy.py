@@ -3,6 +3,7 @@ import unittest
 
 from ethereum import abi
 from ethereum import tester
+from ethereum.config import default_config
 from ethereum.tester import TransactionFailed
 from ethereum.utils import denoms
 from rlp.utils_py2 import decode_hex
@@ -28,11 +29,18 @@ MIGRATION_ABI = open('tests/MigrationAgent.abi', 'r').read()
 TARGET_INIT = decode_hex(open('tests/GNTTargetToken.bin', 'r').read().rstrip())
 TARGET_ABI = open('tests/GNTTargetToken.abi', 'r').read()
 
+gwei = 10 ** 9
+
+tester.gas_limit = int(1.9 * 10 ** 6)
+tester.gas_price = int(22.5 * gwei)
+
 
 class GNTCrowdfundingTest(unittest.TestCase):
 
     def setUp(self):
         self.state = tester.state()
+        self.starting_block = default_config.get('ANTI_DOS_FORK_BLKNUM') + 1
+        self.state.block.number = self.starting_block
 
         available_after = self.state.block.timestamp + 1000
 
