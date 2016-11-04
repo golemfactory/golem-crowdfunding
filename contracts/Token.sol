@@ -7,7 +7,6 @@ contract MigrationAgent {
     function migrateFrom(address _from, uint256 _value);
 }
 
-
 /// @title Golem Network Token (GNT) - crowdfunding contract and token for Golem Project 
 contract GolemNetworkToken {
     string public constant name = "Golem Network Token";
@@ -58,7 +57,7 @@ contract GolemNetworkToken {
     }
 
     /// @notice Transfer `_value` GNT tokens from sender's account 
-	/// `msg.sender` to provided account address `_to`.
+    /// `msg.sender` to provided account address `_to`.
     /// @dev This function is disabled during the funding.
     /// @dev Required state: Operational
     /// @param _to The address of the tokens recipient
@@ -153,8 +152,8 @@ contract GolemNetworkToken {
         // Log token creation event
         Transfer(0, msg.sender, numTokens);
     }
-    
-	/// @dev  If cap was reached or crowdfunding has ended then:
+
+    /// @dev  If cap was reached or crowdfunding has ended then:
     /// transfer ETH to the Golem Factory address, 
     /// create GNT for the golemFactory (representing the company,
     /// create GNT for the developers.
