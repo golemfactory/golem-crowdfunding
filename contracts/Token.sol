@@ -126,15 +126,14 @@ contract GolemNetworkToken {
         if (!funding) throw;
         if (block.number < fundingStartBlock) throw;
         if (block.number > fundingEndBlock) throw;
-        if (totalTokens >= tokenCreationCap) throw;
 
-        // Do not allow creating 0 tokens.
+        // Do not allow creating 0 or more than the cap tokens.
         if (msg.value == 0) throw;
+        if (msg.value > (tokenCreationCap - totalTokens) / tokenCreationRate)
+            throw;
 
-        // Do not create more than cap
         var numTokens = msg.value * tokenCreationRate;
         totalTokens += numTokens;
-        if (totalTokens > tokenCreationCap) throw;
 
         // Assign new tokens to the sender
         balances[msg.sender] += numTokens;
