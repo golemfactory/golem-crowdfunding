@@ -31,7 +31,7 @@ contract GolemNetworkToken {
     // Has control over token migration to next version of token.
     address public migrationMaster;
 
-    GNTAllocation public lockedAllocation;
+    GNTAllocation lockedAllocation;
 
     // The current total token supply.
     uint256 totalTokens;
