@@ -339,8 +339,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
             costs.append(m.gas())
         print(costs)
 
-        assert max(costs) == 65185
-        assert min(costs) == 65185 - 15000
+        assert max(costs) == 65163
+        assert min(costs) == 65163 - 15000
 
     def test_gas_for_transfer(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
