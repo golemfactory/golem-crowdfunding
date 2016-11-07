@@ -47,6 +47,12 @@ contract GolemNetworkToken {
                                address _migrationMaster,
                                uint256 _fundingStartBlock,
                                uint256 _fundingEndBlock) {
+
+        if (_golemFactory == 0) throw;
+        if (_migrationMaster == 0) throw;
+        if (_fundingStartBlock <= block.number) throw;
+        if (_fundingEndBlock   <= _fundingStartBlock) throw;
+
         lockedAllocation = new GNTAllocation(_golemFactory);
         migrationMaster = _migrationMaster;
         golemFactory = _golemFactory;
@@ -111,6 +117,7 @@ contract GolemNetworkToken {
 
     function setMigrationMaster(address _master) external {
         if (msg.sender != migrationMaster) throw;
+        if (_master == 0) throw;
         migrationMaster = _master;
     }
 

@@ -56,7 +56,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.addr_pd2
         ]]
 
-        self.contract, self.c_addr, _ = deploy_gnt(self.state, self.founder, dev_addresses, 2, 2)
+        self.contract, self.c_addr, _ = deploy_gnt(self.state, self.founder, dev_addresses, 2, 3)
 
         self.creation_min = self.contract.tokenCreationMin()
         self.creation_rate = self.contract.tokenCreationRate()
@@ -152,7 +152,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # ---------------
         #  POST FUNDING
         # ---------------
-        self.state.mine(1)
+        self.state.mine(2)
 
         self.contract.finalize()
 
@@ -222,7 +222,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # ---------------
         #  POST FUNDING
         # ---------------
-        self.state.mine(1)
+        self.state.mine(2)
 
         # Fail: gnt == 0
         with self.assertRaises(TransactionFailed):
@@ -272,7 +272,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # ---------------
         #  POST FUNDING
         # ---------------
-        self.state.mine(1)
+        self.state.mine(2)
 
         self.pf.setGNTContract(self.c_addr, sender=self.founder_key)
         self.contract.finalize()
@@ -310,7 +310,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # ---------------
         #  POST FUNDING
         # ---------------
-        self.state.mine(1)
+        self.state.mine(2)
 
         self.pd0.setGNTContract(self.c_addr, sender=tester.keys[0])
         self.pf.setGNTContract(self.c_addr, sender=self.founder_key)
