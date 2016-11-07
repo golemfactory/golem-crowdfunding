@@ -12,7 +12,7 @@ from ethereum import abi, tester
 from ethereum.config import default_config
 from ethereum.keys import sha3
 from ethereum.tester import TransactionFailed, ContractCreationFailed
-from ethereum.utils import denoms, privtoaddr, to_string, parse_int_or_hex
+from ethereum.utils import denoms, privtoaddr, to_string, parse_int_or_hex, mk_contract_address
 from rlp.utils import decode_hex
 
 tester.serpent = True  # tester tries to load serpent module, prevent that.
@@ -261,8 +261,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
         dev_addresses = [ContractHelper.dev_address(a) for a in dev_accounts]
 
         # deploy the gnt contract with updated developer accounts
-        contract, _, _ = deploy_gnt(self.state, tester.accounts[9], dev_addresses, 1, 2)
-        allocation = tester.ABIContract(self.state, ALLOC_ABI, contract.lockedAllocation())
+        contract, _, _ = deploy_gnt(self.state, tester.a9, dev_addresses, 1, 2)
+        alloc_addr = mk_contract_address(contract.address, 0)
+        allocation = tester.ABIContract(self.state, ALLOC_ABI, alloc_addr)
 
         return contract, allocation, dev_keys, dev_accounts
 
@@ -986,7 +987,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
     def test_finalize_funding(self):
         self.deploy_contract(tester.accounts[9], 2, 3)
         contract = self.c
-        allocation = tester.ABIContract(self.state, ALLOC_ABI, contract.lockedAllocation())
+        alloc_addr = mk_contract_address(contract.address, 0)
+        allocation = tester.ABIContract(self.state, ALLOC_ABI, alloc_addr)
 
         # ---------------
         #   PRE FUNDING

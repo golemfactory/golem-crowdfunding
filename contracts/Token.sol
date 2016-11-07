@@ -7,7 +7,7 @@ contract MigrationAgent {
     function migrateFrom(address _from, uint256 _value);
 }
 
-/// @title Golem Network Token (GNT) - crowdfunding code for Golem Project 
+/// @title Golem Network Token (GNT) - crowdfunding code for Golem Project
 contract GolemNetworkToken {
     string public constant name = "Golem Network Token";
     string public constant symbol = "GNT";
@@ -31,7 +31,7 @@ contract GolemNetworkToken {
     // Has control over token migration to next version of token.
     address public migrationMaster;
 
-    GNTAllocation public lockedAllocation;
+    GNTAllocation lockedAllocation;
 
     // The current total token supply.
     uint256 totalTokens;
@@ -62,7 +62,7 @@ contract GolemNetworkToken {
         fundingEndBlock = _fundingEndBlock;
     }
 
-    /// @notice Transfer `_value` GNT tokens from sender's account 
+    /// @notice Transfer `_value` GNT tokens from sender's account
     /// `msg.sender` to provided account address `_to`.
     /// @notice This function is disabled during the funding.
     /// @dev Required state: Operational
@@ -117,7 +117,7 @@ contract GolemNetworkToken {
 	/// process.
     /// @dev Required state: Operational Normal
     /// @dev State transition: -> Operational Migration
-    /// @param _agent The address of the MigrationAgent contract 
+    /// @param _agent The address of the MigrationAgent contract
     function setMigrationAgent(address _agent) external {
         // Abort if not in Operational Normal state.
         if (funding) throw;
