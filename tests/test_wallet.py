@@ -97,7 +97,7 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
         self.state.mine(2)
         # Send funds to contract to achieve mincap
         to_send = 200000 * denoms.ether
-        self.state.send(tester.keys[9], contract.address, to_send)
+        contract.create(sender=tester.keys[9], value=to_send)
 
         # wait for end of funding period and finalize from multisig
         self.state.mine(1)
@@ -168,9 +168,11 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
         #     FUNDING
         # ---------------
         # Send creation_min+ to the GNT contract
-        self.state.send(tester.keys[3], contract.address, eth_part)
-        self.state.send(tester.keys[4], contract.address, eth_part)
-        self.state.send(tester.keys[5], contract.address, eth_part)
+        contract.create(sender=tester.keys[3], value=eth_part)
+        contract.create(sender=tester.keys[4], value=eth_part)
+        contract.create(sender=tester.keys[5], value=eth_part)
+
+        assert wallet_balance_init + eth_part*3 == self.state.block.get_balance(contract.address)
 
         total_tokens = contract.totalSupply()
 
