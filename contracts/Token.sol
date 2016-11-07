@@ -126,7 +126,7 @@ contract GolemNetworkToken {
     // Create tokens when funding is active.
     // Required state: Funding Active
     // State transition: -> Funding Success (only if cap reached)
-    function() payable external {
+    function mint() payable external {
         // Abort if not in Funding Active state.
         // The checks are split (instead of using or operator) because it is
         // cheaper this way.
