@@ -183,7 +183,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
     def setUp(self):
         self.state = tester.state()
-        self.starting_block = default_config.get('ANTI_DOS_FORK_BLKNUM') + 1
+        self.starting_block = default_config.get('SPURIOUS_DRAGON_FORK_BLKNUM') + 1
         self.state.block.number = self.starting_block
 
     def deploy_contract(self, founder, start, end,
@@ -316,7 +316,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         c, g = self.deploy_contract(founder, 5, 105)
         assert len(c) == 20
-        assert g <= 1533575
+        assert g <= 1533855
         assert self.contract_balance() == 0
         assert decode_hex(self.c.golemFactory()) == founder
         assert not self.is_funding_active()
@@ -338,8 +338,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
             costs.append(m.gas())
         print(costs)
 
-        assert max(costs) == 64386
-        assert min(costs) == 64386 - 15000
+        assert max(costs) == 64426
+        assert min(costs) == 64426 - 15000
 
     def test_gas_for_transfer(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
@@ -358,7 +358,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.c.transfer(urandom(20), v, sender=k)
             costs.append(m.gas())
         print(costs)
-        assert max(costs) <= 51942
+        assert max(costs) <= 52040
         assert min(costs) >= 51342
 
     def test_gas_for_migrate_all(self):
@@ -383,7 +383,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.c.migrate(b, sender=k)
             costs.append(m.gas())
         print(costs)
-        assert max(costs) <= 98274
+        assert max(costs) <= 99238
         assert min(costs) >= 56037
 
     def test_gas_for_migrate_half(self):
@@ -408,7 +408,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.c.migrate(b / 2, sender=k)
             costs.append(m.gas())
         print(costs)
-        assert max(costs) <= 113274
+        assert max(costs) <= 114238
         assert min(costs) >= 71037
 
     def test_gas_for_set_migration_agent_and_master(self):
@@ -426,12 +426,12 @@ class GNTCrowdfundingTest(unittest.TestCase):
         lg = self.state.block.gas_used
         self.c.setMigrationAgent(m_addr, sender=factory_key)
         g = self.state.block.gas_used - lg
-        assert g == 44049
+        assert g == 44169
 
         lg = self.state.block.gas_used
         self.c.setMigrationMaster(m_addr, sender=factory_key)
         g = self.state.block.gas_used - lg
-        assert g == 28450
+        assert g == 28570
 
     def test_gas_for_refund(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
@@ -448,8 +448,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.c.refund(sender=k)
             costs.append(m.gas())
         print(costs)
-        assert max(costs) == 26913
-        assert min(costs) == 20957
+        assert max(costs) == 27113
+        assert min(costs) == 21057
 
     def test_gas_for_finalize(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
@@ -462,14 +462,14 @@ class GNTCrowdfundingTest(unittest.TestCase):
         m = self.monitor(0)
         self.c.finalize(sender=tester.k0)
         g = m.gas()
-        assert g == 88431
+        assert g == 88551
 
     def test_gas_for_total_supply(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
         lg = self.state.block.gas_used
         self.c.totalSupply()
         g = self.state.block.gas_used - lg
-        assert g == 21676
+        assert g == 21716
 
     def test_gas_for_balance_of(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
@@ -481,7 +481,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         lg = self.state.block.gas_used
         self.c.balanceOf(tester.accounts[0])
         g = self.state.block.gas_used - lg
-        assert g == 23378
+        assert g == 23458
 
     def test_gas_for_funding_active(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
@@ -490,19 +490,19 @@ class GNTCrowdfundingTest(unittest.TestCase):
         lg = self.state.block.gas_used
         self.c.funding()
         g = self.state.block.gas_used - lg
-        assert g == 22054
+        assert g == 22094
 
         self.state.mine(1)
         lg = self.state.block.gas_used
         self.c.funding()
         g = self.state.block.gas_used - lg
-        assert g == 22054
+        assert g == 22094
 
         self.state.mine(2)
         lg = self.state.block.gas_used
         self.c.funding()
         g = self.state.block.gas_used - lg
-        assert g == 22054
+        assert g == 22094
 
     def test_gas_for_funding(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
@@ -510,7 +510,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         lg = self.state.block.gas_used
         assert self.c.funding()
         g = self.state.block.gas_used - lg
-        assert g == 22054
+        assert g == 22094
 
     def test_transfer_enabled_after_end_block(self):
         founder = tester.accounts[4]

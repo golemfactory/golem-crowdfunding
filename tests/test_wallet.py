@@ -2,6 +2,7 @@ import unittest
 
 from ethereum import abi
 from ethereum import tester
+from ethereum.config import default_config
 from ethereum.keys import decode_hex
 from ethereum.utils import denoms
 
@@ -18,6 +19,8 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
 
     def setUp(self):
         self.state = tester.state()
+        self.starting_block = default_config.get('SPURIOUS_DRAGON_FORK_BLKNUM') + 1
+        self.state.block.number = self.starting_block
 
     def deploy_contract(self, start, end, creator_idx=9, migration_master=None):
         founder = tester.accounts[creator_idx]
@@ -25,7 +28,9 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
             migration_master = founder
 
         t = abi.ContractTranslator(GNT_ABI)
-        args = t.encode_constructor_arguments((founder, migration_master, start, end))
+        args = t.encode_constructor_arguments((founder, migration_master,
+                                               self.state.block.number + start,
+                                               self.state.block.number + end))
         addr = self.state.evm(GNT_INIT + args,
                               sender=tester.keys[creator_idx])
         return tester.ABIContract(self.state, GNT_ABI, addr), t
@@ -81,10 +86,9 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
         # ---------------
         #     FUNDING
         # ---------------
-        self.state.mine(1)
+        self.state.mine(2)
 
         eths_to_spend = to_send - 1 * denoms.ether
-
         wallet.execute(contract.address, eths_to_spend, '')
 
         assert contract.balanceOf(wallet.address) == eths_to_spend * contract.tokenCreationRate()
