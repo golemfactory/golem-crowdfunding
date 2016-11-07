@@ -12,7 +12,11 @@ GNT_ABI = open('tests/GolemNetworkToken.abi', 'r').read()
 WALLET_INIT = decode_hex(open('tests/MultiSigWallet.bin', 'r').read().rstrip())
 WALLET_ABI = open('tests/MultiSigWallet.abi', 'r').read()
 
+MIGRATION_INIT = decode_hex(open('tests/MigrationAgent.bin', 'r').read().rstrip())
+MIGRATION_ABI = open('tests/MigrationAgent.abi', 'r').read()
 
+TARGET_INIT = decode_hex(open('tests/GNTTargetToken.bin', 'r').read().rstrip())
+TARGET_ABI = open('tests/GNTTargetToken.abi', 'r').read()
 
 class GolemNetworkTokenWalletTest(unittest.TestCase):
 
@@ -34,6 +38,17 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
         addr = self.state.evm(GNT_INIT + args,
                               sender=tester.keys[creator_idx])
         return tester.ABIContract(self.state, GNT_ABI, addr), t
+
+    def __deploy_contract(self, _bin, _abi, creator_idx, *args):
+        gas_before = self.state.block.gas_used
+
+        t = abi.ContractTranslator(_abi)
+        args = t.encode_constructor_arguments(args)
+        addr = self.state.evm(_bin + args,
+                              sender=tester.keys[creator_idx])
+        contract = tester.ABIContract(self.state, _abi, addr)
+
+        return contract, addr, self.state.block.gas_used - gas_before
 
     def __deploy_wallet(self, owner_key, owners, required=1):
         t = abi.ContractTranslator(WALLET_ABI)
@@ -134,3 +149,59 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
 
         assert contract.balanceOf(wallet.address) == 0
         assert self.state.block.get_balance(wallet.address) == wallet_balance_init
+
+
+    def test_migration(self):
+        n_wallet_owners = 3
+        wallet, wallet_owners, wallet_owner_keys = self.deploy_wallet(n_wallet_owners, required=2)
+        self.state.mine(1)
+        contract, translator = self.deploy_contract(2, 3, migration_master=wallet.address)
+        wallet_balance_init = self.state.block.get_balance(wallet.address)
+        self.state.mine(2)
+
+        creation_min = contract.tokenCreationMin()
+        creation_rate = contract.tokenCreationRate()
+        transfer_value = denoms.ether * creation_rate
+        eth_part = int(creation_min / (3 * creation_rate)) + 1 * denoms.ether
+
+        # ---------------
+        #     FUNDING
+        # ---------------
+        # Send creation_min+ to the GNT contract
+        self.state.send(tester.keys[3], contract.address, eth_part)
+        self.state.send(tester.keys[4], contract.address, eth_part)
+        self.state.send(tester.keys[5], contract.address, eth_part)
+
+        total_tokens = contract.totalSupply()
+
+        # ---------------
+        #  POST FUNDING
+        # ---------------
+        self.state.mine(2)
+
+        contract.finalize()
+        # ---------------
+        #    IN NORMAL
+        # ---------------
+        migration, m_addr, _ = self.__deploy_contract(MIGRATION_INIT, MIGRATION_ABI, 9, contract.address)
+        target, t_addr, _ = self.__deploy_contract(TARGET_INIT, TARGET_ABI, 9, m_addr)
+
+        with self.assertRaises(TransactionFailed):
+            contract.setMigrationAgent(m_addr, sender=tester.keys[8])
+
+        setagent = translator.encode_function_call('setMigrationAgent', [m_addr])
+        wallet.submitTransaction(contract.address, 0, setagent,
+                                 10001, sender=tester.keys[0])
+        wallet.submitTransaction(contract.address, 0, setagent,
+                                 10001, sender=tester.keys[1])
+
+        # ---------------
+        #  IN MIGRATION
+        # ---------------
+        migration.setTargetToken(t_addr, sender=tester.keys[9])
+
+        b = contract.balanceOf(tester.accounts[3])
+        assert b > 0
+        contract.migrate(b, sender=tester.keys[3])
+        assert 0 == contract.balanceOf(tester.accounts[3])
+        assert b == target.balanceOf(tester.accounts[3])
