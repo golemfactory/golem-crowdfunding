@@ -9,8 +9,8 @@ from ethereum.utils import denoms
 GNT_INIT = decode_hex(open('tests/GolemNetworkToken.bin', 'r').read().rstrip())
 GNT_ABI = open('tests/GolemNetworkToken.abi', 'r').read()
 
-WALLET_INIT = decode_hex(open('tests/Wallet.bin', 'r').read().rstrip())
-WALLET_ABI = open('tests/Wallet.abi', 'r').read()
+WALLET_INIT = decode_hex(open('tests/MultiSigWallet.bin', 'r').read().rstrip())
+WALLET_ABI = open('tests/MultiSigWallet.abi', 'r').read()
 
 WALLET_DAY_LIMIT = 1000 * denoms.ether
 
@@ -22,8 +22,9 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
         self.starting_block = default_config.get('SPURIOUS_DRAGON_FORK_BLKNUM') + 1
         self.state.block.number = self.starting_block
 
-    def deploy_contract(self, start, end, creator_idx=9, migration_master=None):
-        founder = tester.accounts[creator_idx]
+    def deploy_contract(self, start, end, creator_idx=9, migration_master=None, founder=None):
+        if founder is None:
+            founder = tester.accounts[creator_idx]
         if migration_master is None:
             migration_master = founder
 
@@ -35,9 +36,9 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
                               sender=tester.keys[creator_idx])
         return tester.ABIContract(self.state, GNT_ABI, addr), t
 
-    def __deploy_wallet(self, owner_key, owners, required=1, daylimit=WALLET_DAY_LIMIT):
+    def __deploy_wallet(self, owner_key, owners, required=1):
         t = abi.ContractTranslator(WALLET_ABI)
-        args = t.encode_constructor_arguments((owners, required, daylimit))
+        args = t.encode_constructor_arguments((owners, required))
         addr = self.state.evm(WALLET_INIT + args,
                               sender=owner_key)
         return tester.ABIContract(self.state, WALLET_ABI, addr)
@@ -71,12 +72,34 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
         assert all([self.state.block.get_balance(wallet_owners[i]) == b
                     for i, b in enumerate(wallet_owner_balances)])
 
+    def test_finalize(self):
+        n_wallet_owners = 3
+        wallet, wallet_owners, wallet_owner_keys = self.deploy_wallet(n_wallet_owners, required=2)
+        self.state.mine(1)
+        contract, translator = self.deploy_contract(2, 3, founder=wallet.address)
+
+        wallet_balance_init = self.state.block.get_balance(wallet.address)
+
+        self.state.mine(2)
+        # Send funds to contract to achieve mincap
+        to_send = 200000 * denoms.ether
+        self.state.send(tester.keys[9], contract.address, to_send)
+
+        # wait for end of funding period and finalize from multisig
+        self.state.mine(1)
+        finalize = translator.encode_function_call('finalize', [])
+        wallet.submitTransaction(contract.address, 0, finalize,
+                                 10001, sender=tester.keys[0])
+        wallet.submitTransaction(contract.address, 0, finalize,
+                                 10001, sender=tester.keys[1])
+        assert self.state.block.get_balance(wallet.address) == to_send - wallet_balance_init
+
     def test_refund(self):
         self.state.mine(1)
-        contract, translator = self.deploy_contract(2, 3)
+        contract, translator = self.deploy_contract(2, 3, creator_idx=1)
 
         n_wallet_owners = 3
-        wallet, wallet_owners, wallet_owner_keys = self.deploy_wallet(n_wallet_owners)
+        wallet, wallet_owners, wallet_owner_keys = self.deploy_wallet(n_wallet_owners, required=2)
 
         # Send eth to the wallet contract
         to_send = 10 * denoms.ether
@@ -90,7 +113,11 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
 
         eths_to_spend = to_send - 1 * denoms.ether
 
-        wallet.execute(contract.address, eths_to_spend, decode_hex('efc81a8c'))
+        create = decode_hex('efc81a8c')
+        wallet.submitTransaction(contract.address, eths_to_spend, create,
+                                 10000, sender=tester.keys[0])
+        wallet.submitTransaction(contract.address, eths_to_spend, create,
+                                 10000, sender=tester.keys[1])
 
         assert contract.balanceOf(wallet.address) == eths_to_spend * contract.tokenCreationRate()
         assert self.state.block.get_balance(wallet.address) == wallet_balance_init - eths_to_spend
@@ -101,7 +128,10 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
         self.state.mine(2)
 
         refund = translator.encode_function_call('refund', [])
-        wallet.execute(contract.address, 0, refund)
+        wallet.submitTransaction(contract.address, 0, refund,
+                                 10001, sender=tester.keys[0])
+        wallet.submitTransaction(contract.address, 0, refund,
+                                 10001, sender=tester.keys[1])
 
         assert contract.balanceOf(wallet.address) == 0
         assert self.state.block.get_balance(wallet.address) == wallet_balance_init
