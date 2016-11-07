@@ -47,6 +47,12 @@ contract GolemNetworkToken {
                                address _migrationMaster,
                                uint256 _fundingStartBlock,
                                uint256 _fundingEndBlock) {
+
+        if (_golemFactory == 0) throw;
+        if (_migrationMaster == 0) throw;
+        if (_fundingStartBlock <= block.number) throw;
+        if (_fundingEndBlock   <= _fundingStartBlock) throw;
+
         lockedAllocation = new GNTAllocation(_golemFactory);
         migrationMaster = _migrationMaster;
         golemFactory = _golemFactory;
@@ -111,6 +117,7 @@ contract GolemNetworkToken {
 
     function setMigrationMaster(address _master) external {
         if (msg.sender != migrationMaster) throw;
+        if (_master == 0) throw;
         migrationMaster = _master;
     }
 
@@ -143,9 +150,8 @@ contract GolemNetworkToken {
     }
 
     // If cap was reached or crowdfunding has ended then:
-    // transfer ETH to the Golem Factory address,
-    // create GNT for the golemFactory (representing the company,
-    // create GNT for the developers.
+    // create GNT for the Golem Factory and developer,
+    // transfer ETH to the Golem Factory address.
     // Required state: Funding Success
     // State transition: -> Operational Normal
     function finalize() external {
@@ -158,11 +164,8 @@ contract GolemNetworkToken {
         // Switch to Operational state. This is the only place this can happen.
         funding = false;
 
-        // Transfer ETH to the Golem Factory address.
-        if (!golemFactory.send(this.balance)) throw;
-
-        // Create additional GNT for the Factory (representing the company)
-        // and developers as a 18% of total number of tokens.
+        // Create additional GNT for the Golem Factory and developers as
+        // the 18% of total number of tokens.
         // All additional tokens are transfered to the account controller by
         // GNTAllocation contract which will not allow using them for 6 months.
         uint256 percentOfTotal = 18;
@@ -171,6 +174,9 @@ contract GolemNetworkToken {
         totalTokens += additionalTokens;
         balances[lockedAllocation] += additionalTokens;
         Transfer(0, lockedAllocation, additionalTokens);
+
+        // Transfer ETH to the Golem Factory address.
+        if (!golemFactory.send(this.balance)) throw;
     }
 
     // Get back the ether sent during the funding in case the funding has not
@@ -188,7 +194,7 @@ contract GolemNetworkToken {
         totalTokens -= gntValue;
 
         var ethValue = gntValue / tokenCreationRate;
-        if (!msg.sender.send(ethValue)) throw;
         Refund(msg.sender, ethValue);
+        if (!msg.sender.send(ethValue)) throw;
     }
 }

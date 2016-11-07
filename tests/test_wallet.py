@@ -67,7 +67,8 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
                     for i, b in enumerate(wallet_owner_balances)])
 
     def test_refund(self):
-        contract, translator = self.deploy_contract(2, 2)
+        self.state.mine(1)
+        contract, translator = self.deploy_contract(2, 3)
 
         n_wallet_owners = 3
         wallet, wallet_owners, wallet_owner_keys = self.deploy_wallet(n_wallet_owners)
@@ -80,7 +81,7 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
         # ---------------
         #     FUNDING
         # ---------------
-        self.state.mine(2)
+        self.state.mine(1)
 
         eths_to_spend = to_send - 1 * denoms.ether
 
@@ -92,7 +93,7 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
         # ---------------
         #  POST FUNDING
         # ---------------
-        self.state.mine(1)
+        self.state.mine(2)
 
         refund = translator.encode_function_call('refund', [])
         wallet.execute(contract.address, 0, refund)
