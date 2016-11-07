@@ -7,7 +7,7 @@ contract MigrationAgent {
     function migrateFrom(address _from, uint256 _value);
 }
 
-/// @title Golem Network Token (GNT) - crowdfunding contract and token for Golem Project 
+/// @title Golem Network Token (GNT) - crowdfunding code for Golem Project 
 contract GolemNetworkToken {
     string public constant name = "Golem Network Token";
     string public constant symbol = "GNT";
