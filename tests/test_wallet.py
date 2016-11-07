@@ -12,7 +12,6 @@ GNT_ABI = open('tests/GolemNetworkToken.abi', 'r').read()
 WALLET_INIT = decode_hex(open('tests/MultiSigWallet.bin', 'r').read().rstrip())
 WALLET_ABI = open('tests/MultiSigWallet.abi', 'r').read()
 
-WALLET_DAY_LIMIT = 1000 * denoms.ether
 
 
 class GolemNetworkTokenWalletTest(unittest.TestCase):

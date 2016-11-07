@@ -9,7 +9,7 @@ unit: build
 proxy: build
 	pytest tests/test_proxy.py
 
-build: tests/GolemNetworkToken.abi tests/GolemNetworkToken.bin tests/GNTTargetToken.bin tests/GNTTargetToken.abi tests/MigrationAgent.bin tests/MigrationAgent.abi tests/BadWallet.bin tests/BadWallet.abi tests/ProxyAccount.bin tests/ProxyAccount.abi tests/ProxyFactoryAccount.bin tests/ProxyFactoryAccount.abi tests/GNTAllocation.bin tests/GNTAllocation.abi tests/Wallet.bin tests/Wallet.abi tests/MultiSigWallet.bin tests/MultiSigWallet.abi
+build: tests/GolemNetworkToken.abi tests/GolemNetworkToken.bin tests/GNTTargetToken.bin tests/GNTTargetToken.abi tests/MigrationAgent.bin tests/MigrationAgent.abi tests/BadWallet.bin tests/BadWallet.abi tests/ProxyAccount.bin tests/ProxyAccount.abi tests/ProxyFactoryAccount.bin tests/ProxyFactoryAccount.abi tests/GNTAllocation.bin tests/GNTAllocation.abi tests/MultiSigWallet.bin tests/MultiSigWallet.abi
 
 tests/GolemNetworkToken.bin: contracts/Token.sol
 	solc --bin --abi --optimize contracts/Token.sol | awk '/======= GolemNetworkToken =======/,/======= MigrationAgent =======/' | grep '[01-9a-f]\{10,\}' > tests/GolemNetworkToken.bin
@@ -52,12 +52,6 @@ tests/GNTAllocation.bin: contracts/GNTAllocation.sol
 
 tests/GNTAllocation.abi: contracts/GNTAllocation.sol
 	solc --bin --abi --optimize contracts/GNTAllocation.sol | awk '/======= GNTAllocation =======/,/======= GolemNetworkToken =======/' | grep '\[.*\]' > tests/GNTAllocation.abi
-
-tests/Wallet.bin: contracts/Wallet.sol
-	solc --bin --abi --optimize contracts/Wallet.sol | awk '/======= Wallet =======/,/======= daylimit =======/' | grep '[01-9a-f]\{10,\}' > tests/Wallet.bin
-
-tests/Wallet.abi: contracts/Wallet.sol
-	solc --bin --abi --optimize contracts/Wallet.sol | awk '/======= Wallet =======/,/======= daylimit =======/' | grep '\[.*\]' > tests/Wallet.abi
 
 tests/MultiSigWallet.bin: contracts/MultiSigWallet.sol
 	solc --bin --abi --optimize contracts/MultiSigWallet.sol | grep '[01-9a-f]\{10,\}' > tests/MultiSigWallet.bin
