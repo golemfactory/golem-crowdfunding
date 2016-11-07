@@ -64,7 +64,7 @@ contract GolemNetworkToken {
 
     /// @notice Transfer `_value` GNT tokens from sender's account 
     /// `msg.sender` to provided account address `_to`.
-    /// @dev This function is disabled during the funding.
+    /// @notice This function is disabled during the funding.
     /// @dev Required state: Operational
     /// @param _to The address of the tokens recipient
     /// @param _value The amount of token to be transferred
@@ -113,7 +113,8 @@ contract GolemNetworkToken {
         Migrate(msg.sender, migrationAgent, _value);
     }
 
-    /// @dev Set address of migration target contract and enable migration process.
+    /// @notice Set address of migration target contract and enable migration
+	/// process.
     /// @dev Required state: Operational Normal
     /// @dev State transition: -> Operational Migration
     /// @param _agent The address of the MigrationAgent contract 
@@ -159,6 +160,7 @@ contract GolemNetworkToken {
         Transfer(0, msg.sender, numTokens);
     }
 
+    /// @notice Finalize crowdfunding
     /// @dev If cap was reached or crowdfunding has ended then:
     /// create GNT for the Golem Factory and developer,
     /// transfer ETH to the Golem Factory address.
@@ -189,8 +191,8 @@ contract GolemNetworkToken {
         if (!golemFactory.send(this.balance)) throw;
     }
 
-    /// @notice Get back the ether sent during the funding in case the funding has not
-    /// reached the minimum level.
+    /// @notice Get back the ether sent during the funding in case the funding
+    /// has not reached the minimum level.
     /// @dev Required state: Funding Failure
     function refund() external {
         // Abort if not in Funding Failure state.

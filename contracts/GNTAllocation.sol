@@ -2,7 +2,8 @@ pragma solidity ^0.4.4;
 
 import "./Token.sol";
 
-/// @title GNT Allocation - Time-locked vault of tokens allocated to developers and Golem Factory
+/// @title GNT Allocation - Time-locked vault of tokens allocated 
+/// to developers and Golem Factory
 contract GNTAllocation {
     // Total number of allocations to distribute additional tokens among
     // developers and the Golem Factory. The Golem Factory has right to 20000
