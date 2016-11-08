@@ -38,8 +38,9 @@ ALLOC_ABI = open('tests/GNTAllocation.abi', 'r').read()
 WALLET_INIT = decode_hex(open('tests/BadWallet.bin', 'r').read().rstrip())
 WALLET_ABI = open('tests/BadWallet.abi', 'r').read()
 
-GNT_CONTRACT_PATH = os.path.join('contracts', 'Token.sol')
-ALLOC_CONTRACT_PATH = os.path.join('contracts', 'GNTAllocation.sol')
+CONTRACTS_DIR = os.path.abspath('contracts')
+GNT_CONTRACT_PATH = os.path.join(CONTRACTS_DIR, 'Token.sol')
+ALLOC_CONTRACT_PATH = os.path.join(CONTRACTS_DIR, 'GNTAllocation.sol')
 
 IMPORT_TOKEN_REGEX = '(import "\.\/Token\.sol";).*'
 IMPORT_ALLOC_REGEX = '(import "\.\/GNTAllocation\.sol";).*'
@@ -102,29 +103,76 @@ class ContractHelper(object):
         return '0x' + addr.encode('hex')
 
 
-def deploy_gnt(state, factory, dev_addresses, start, end, creator_idx=9):
+def deploy_gnt(state, factory, start, end, creator_idx=9, replacements=None):
     alloc_helper = ContractHelper(ALLOC_CONTRACT_PATH)
     # remove import
     alloc_helper.sub([''], regex=IMPORT_TOKEN_REGEX)
-    # replace dev addresses
-    alloc_helper.sub(dev_addresses)
 
     # replace import with contract source
     gnt_helper = ContractHelper(GNT_CONTRACT_PATH, regex=IMPORT_ALLOC_REGEX)
     gnt_helper.sub([alloc_helper.source])
 
+    # replace values
+    for rep, regex in replacements:
+        gnt_helper.sub(rep, regex)
+
     gas_before = state.block.gas_used
     starting_block = state.block.number
 
-    with work_dir_context(gnt_helper.contract_path):
-        contract = state.abi_contract(gnt_helper.source,
-                                      language='solidity',
-                                      sender=tester.keys[creator_idx],
-                                      constructor_parameters=(factory, factory,
-                                                              starting_block + start,
-                                                              starting_block + end))
+    contract = state.abi_contract(gnt_helper.source,
+                                  language='solidity',
+                                  sender=tester.keys[creator_idx],
+                                  constructor_parameters=(factory, factory,
+                                                          starting_block + start,
+                                                          starting_block + end))
 
     return contract, contract.address, state.block.gas_used - gas_before
+
+
+def deploy_contract_and_accounts(state, n_devs, start=1, end=2, deploy_contract=True):
+    dev_keys = []
+    dev_accounts = []
+
+    milestone = int(math.log10(n_devs))
+    notify_step = milestone - 2
+    notify_value = 10 ** notify_step if notify_step > 0 else 1
+
+    # create developer accounts and keys in fashion of testers
+    for account_number in range(n_devs):
+        if account_number % notify_value == 0:
+            print "Account", account_number + 1, "out of", n_devs
+
+        dev_keys.append(sha3('dev' + to_string(account_number)))
+        dev_accounts.append(privtoaddr(dev_keys[-1]))
+
+    # developer balances
+    block = state.block
+
+    for i in range(n_devs):
+        if i % notify_value == 0:
+            print "Balance", i + 1, "out of", n_devs
+
+        addr, data = dev_accounts[i], {'wei': 10 ** 24}
+        if len(addr) == 40:
+            addr = decode_hex(addr)
+        assert len(addr) == 20
+        block.set_balance(addr, parse_int_or_hex(data['wei']))
+
+    block.commit_state()
+    block.state.db.commit()
+
+    dev_addresses = [ContractHelper.dev_address(a) for a in dev_accounts]
+
+    # deploy the gnt contract with updated developer accounts
+    if deploy_contract:
+        contract, _, _ = deploy_gnt(state, tester.accounts[9], start, end,
+                                    replacements=[(dev_addresses, DEV_ADDR_REGEX)])
+        alloc_addr = mk_contract_address(contract.address, 0)
+        allocation = tester.ABIContract(state, ALLOC_ABI, alloc_addr)
+    else:
+        contract, allocation = None, None
+
+    return contract, allocation, dev_keys, dev_accounts
 
 
 class GNTCrowdfundingTest(unittest.TestCase):
@@ -235,37 +283,6 @@ class GNTCrowdfundingTest(unittest.TestCase):
                               sender=owner.key)
         self.t = tester.ABIContract(self.state, TARGET_ABI, addr)
         return addr, owner.gas()
-
-    def deploy_contract_and_accounts(self, n_devs):
-        dev_keys = []
-        dev_accounts = []
-
-        # create developer accounts and keys in fashion of testers
-        for account_number in range(n_devs):
-            dev_keys.append(sha3('dev' + to_string(account_number)))
-            dev_accounts.append(privtoaddr(dev_keys[-1]))
-
-        # developer balances
-        block = self.state.block
-
-        for i in range(n_devs):
-            addr, data = dev_accounts[i], {'wei': 10 ** 24}
-            if len(addr) == 40:
-                addr = decode_hex(addr)
-            assert len(addr) == 20
-            block.set_balance(addr, parse_int_or_hex(data['wei']))
-
-        block.commit_state()
-        block.state.db.commit()
-
-        dev_addresses = [ContractHelper.dev_address(a) for a in dev_accounts]
-
-        # deploy the gnt contract with updated developer accounts
-        contract, _, _ = deploy_gnt(self.state, tester.a9, dev_addresses, 1, 2)
-        alloc_addr = mk_contract_address(contract.address, 0)
-        allocation = tester.ABIContract(self.state, ALLOC_ABI, alloc_addr)
-
-        return contract, allocation, dev_keys, dev_accounts
 
     def contract_balance(self):
         return self.state.block.get_balance(self.c.address)
@@ -1038,8 +1055,10 @@ class GNTCrowdfundingTest(unittest.TestCase):
         dev_shares = [2500, 730, 730, 730, 730, 730, 630, 630, 630, 630, 310,
                       153, 150, 100, 100, 100, 70, 70, 70, 70, 70, 42, 25]
 
+        self.state.mine(1)
+
         n_devs = len(dev_shares)
-        contract, allocation, dev_keys, dev_accounts = self.deploy_contract_and_accounts(n_devs)
+        contract, allocation, dev_keys, dev_accounts = deploy_contract_and_accounts(self.state, n_devs)
         factory = contract.golemFactory()
 
         # ---------------
@@ -1272,8 +1291,8 @@ class GNTContractHelperTest(unittest.TestCase):
         assert alloc_helper.findall()[:6] == ['0xad00', '0xad01', '0xad02', '0xde03', '0xde04', '0xde05']
 
         # replace import with contract source
-        gnt_helper = ContractHelper(GNT_CONTRACT_PATH, regex=IMPORT_ALLOC_REGEX)
-        gnt_helper.sub([alloc_helper.source])
+        gnt_helper = ContractHelper(GNT_CONTRACT_PATH)
+        gnt_helper.sub([alloc_helper.source], regex=IMPORT_ALLOC_REGEX)
 
         state = tester.state()
         state.mine(1)

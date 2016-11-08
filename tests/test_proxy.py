@@ -56,7 +56,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.addr_pd2
         ]]
 
-        self.contract, self.c_addr, _ = deploy_gnt(self.state, self.founder, dev_addresses, 2, 3)
+        self.contract, self.c_addr, _ = deploy_gnt(self.state, self.founder, 1, 2,
+                                                   replacements=[(dev_addresses, DEV_ADDR_REGEX)])
 
         self.creation_min = self.contract.tokenCreationMin()
         self.creation_rate = self.contract.tokenCreationRate()
