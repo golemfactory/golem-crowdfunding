@@ -8,6 +8,19 @@ from ethereum.utils import denoms
 
 from test_gnt import deploy_contract_and_accounts, deploy_gnt
 
+'''
+1.  Comment `@unittest.skip`
+2.  Download the initial state (100k accounts with initial balances) from here:
+    https://drive.google.com/file/d/0B1GzYGSucTNbLXI2S2p6dFBpV0U/view?usp=sharing
+    and extract it to main dir (if the file is not present, it will be created on the first run).
+
+        md5     9a4373a8507373b0177181877ada2d6f
+        sha1    7afbcbc0d9665c93097e898296ca74a4ae2949e9
+
+3.  Tweak the `calc_block_gas_limit` function if needed.
+4.  Run with `py.test tests/test_cf_100k.py -s` to see progress messages.
+'''
+
 STATE_FILE_NAME = 'test100k.state'
 
 N_PARTICIPANTS = 10 ** 5
