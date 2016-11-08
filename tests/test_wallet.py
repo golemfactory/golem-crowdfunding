@@ -101,7 +101,7 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
         contract.create(sender=tester.keys[9], value=to_send)
 
         # wait for end of funding period and finalize from multisig
-        self.state.mine(1)
+        self.state.mine(2)
         finalize = translator.encode_function_call('finalize', [])
         wallet.submitTransaction(contract.address, 0, finalize,
                                  10001, sender=tester.keys[0])
