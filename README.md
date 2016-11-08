@@ -11,4 +11,4 @@ Testing requires Python and following packages: pyetherem, py.test
     
 To run tests:
 
-    py.test tests
+    make tests
