@@ -1,2 +1,2 @@
-ethereum
 pytest
+git+https://github.com/mfranciszkiewicz/pyethereum.git@0ecd387a4cd74d08a98a2b7c5ebe9275ca0d295c#egg=ethereum

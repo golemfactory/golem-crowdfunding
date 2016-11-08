@@ -3,6 +3,7 @@ import unittest
 
 from ethereum import abi
 from ethereum import tester
+from ethereum.config import default_config
 from ethereum.tester import TransactionFailed
 from ethereum.utils import denoms
 from rlp.utils_py2 import decode_hex
@@ -28,11 +29,18 @@ MIGRATION_ABI = open('tests/MigrationAgent.abi', 'r').read()
 TARGET_INIT = decode_hex(open('tests/GNTTargetToken.bin', 'r').read().rstrip())
 TARGET_ABI = open('tests/GNTTargetToken.abi', 'r').read()
 
+gwei = 10 ** 9
+
+tester.gas_limit = int(1.9 * 10 ** 6)
+tester.gas_price = int(22.5 * gwei)
+
 
 class GNTCrowdfundingTest(unittest.TestCase):
 
     def setUp(self):
         self.state = tester.state()
+        self.starting_block = default_config.get('SPURIOUS_DRAGON_FORK_BLKNUM') + 1
+        self.state.block.number = self.starting_block
 
         available_after = self.state.block.timestamp + 1000
 
@@ -48,7 +56,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.addr_pd2
         ]]
 
-        self.contract, self.c_addr, _ = deploy_gnt(self.state, self.founder, 2, 2,
+        self.contract, self.c_addr, _ = deploy_gnt(self.state, self.founder, 1, 2,
                                                    replacements=[(dev_addresses, DEV_ADDR_REGEX)])
 
         self.creation_min = self.contract.tokenCreationMin()
@@ -130,9 +138,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.mine(1)
 
         # Send creation_min+ to the GNT contract
-        self.state.send(tester.keys[3], self.c_addr, self.eth_part)
-        self.state.send(tester.keys[4], self.c_addr, self.eth_part)
-        self.state.send(tester.keys[5], self.c_addr, self.eth_part)
+        self.contract.create(sender=tester.keys[3], value=self.eth_part)
+        self.contract.create(sender=tester.keys[4], value=self.eth_part)
+        self.contract.create(sender=tester.keys[5], value=self.eth_part)
 
         # Fail: gnt.transfer | notLocked
         with self.assertRaises(TransactionFailed):
@@ -145,7 +153,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # ---------------
         #  POST FUNDING
         # ---------------
-        self.state.mine(1)
+        self.state.mine(2)
 
         self.contract.finalize()
 
@@ -204,9 +212,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.mine(1)
 
         # Send creation_min+ to the GNT contract
-        self.state.send(tester.keys[3], self.c_addr, self.eth_part * 2)
-        self.state.send(tester.keys[4], self.c_addr, self.eth_part * 2)
-        self.state.send(tester.keys[5], self.c_addr, self.eth_part * 2)
+        self.contract.create(sender=tester.keys[3], value=self.eth_part * 2)
+        self.contract.create(sender=tester.keys[4], value=self.eth_part * 2)
+        self.contract.create(sender=tester.keys[5], value=self.eth_part * 2)
 
         # Success (balance == 0)
         self.pf.withdraw(sender=self.founder_key)
@@ -215,7 +223,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # ---------------
         #  POST FUNDING
         # ---------------
-        self.state.mine(1)
+        self.state.mine(2)
 
         # Fail: gnt == 0
         with self.assertRaises(TransactionFailed):
@@ -254,9 +262,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.mine(1)
 
         # Send creation_min+ to the GNT contract
-        self.state.send(tester.keys[3], self.c_addr, self.eth_part)
-        self.state.send(tester.keys[4], self.c_addr, self.eth_part)
-        self.state.send(tester.keys[5], self.c_addr, self.eth_part)
+        self.contract.create(sender=tester.keys[3], value=self.eth_part)
+        self.contract.create(sender=tester.keys[4], value=self.eth_part)
+        self.contract.create(sender=tester.keys[5], value=self.eth_part)
 
         # gnt.setMigrationMaster | inOperational
         with self.assertRaises(TransactionFailed):
@@ -265,7 +273,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # ---------------
         #  POST FUNDING
         # ---------------
-        self.state.mine(1)
+        self.state.mine(2)
 
         self.pf.setGNTContract(self.c_addr, sender=self.founder_key)
         self.contract.finalize()
@@ -294,16 +302,16 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.mine(2)
 
         # Send creation_min+ to the GNT contract
-        self.state.send(tester.keys[3], self.c_addr, self.eth_part)
-        self.state.send(tester.keys[4], self.c_addr, self.eth_part)
-        self.state.send(tester.keys[5], self.c_addr, self.eth_part)
+        self.contract.create(sender=tester.keys[3], value=self.eth_part)
+        self.contract.create(sender=tester.keys[4], value=self.eth_part)
+        self.contract.create(sender=tester.keys[5], value=self.eth_part)
 
         total_tokens = self.contract.totalSupply()
 
         # ---------------
         #  POST FUNDING
         # ---------------
-        self.state.mine(1)
+        self.state.mine(2)
 
         self.pd0.setGNTContract(self.c_addr, sender=tester.keys[0])
         self.pf.setGNTContract(self.c_addr, sender=self.founder_key)
@@ -346,5 +354,3 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # assert self.contract.balanceOf(tester.accounts[0]) == 0
         # assert target.balanceOf(tester.accounts[0]) == 0
         # assert target.balanceOf(self.addr_pd0) == balance_pd0
-
-
