@@ -3,6 +3,7 @@ import unittest
 from ethereum import abi
 from ethereum import tester
 from ethereum.config import default_config
+from ethereum.tester import TransactionFailed
 from ethereum.keys import decode_hex
 from ethereum.utils import denoms
 
