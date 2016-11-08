@@ -5,9 +5,9 @@ GNT contract is defined in contracts/Token.sol. All other contracts are there fo
 
 ## Testing
 
-Testing requires Python and following packages: pyetherem, py.test, hypothesis
+Testing requires Python and following packages: pyetherem, py.test
 
-    pip install ethereum pytest hypothesis
+    pip install ethereum pytest
     
 To run tests:
 
