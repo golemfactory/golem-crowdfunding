@@ -89,7 +89,8 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
         self.state.mine(2)
 
         eths_to_spend = to_send - 1 * denoms.ether
-        wallet.execute(contract.address, eths_to_spend, decode_hex('1249c58b'))
+
+        wallet.execute(contract.address, eths_to_spend, decode_hex('efc81a8c'))
 
         assert contract.balanceOf(wallet.address) == eths_to_spend * contract.tokenCreationRate()
         assert self.state.block.get_balance(wallet.address) == wallet_balance_init - eths_to_spend

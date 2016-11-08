@@ -12,7 +12,7 @@ from ethereum import abi, tester
 from ethereum.config import default_config
 from ethereum.keys import sha3
 from ethereum.tester import TransactionFailed, ContractCreationFailed
-from ethereum.utils import denoms, privtoaddr, to_string, parse_int_or_hex
+from ethereum.utils import denoms, privtoaddr, to_string, parse_int_or_hex, mk_contract_address
 from rlp.utils import decode_hex
 
 tester.serpent = True  # tester tries to load serpent module, prevent that.
@@ -261,8 +261,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
         dev_addresses = [ContractHelper.dev_address(a) for a in dev_accounts]
 
         # deploy the gnt contract with updated developer accounts
-        contract, _, _ = deploy_gnt(self.state, tester.accounts[9], dev_addresses, 1, 2)
-        allocation = tester.ABIContract(self.state, ALLOC_ABI, contract.lockedAllocation())
+        contract, _, _ = deploy_gnt(self.state, tester.a9, dev_addresses, 1, 2)
+        alloc_addr = mk_contract_address(contract.address, 0)
+        allocation = tester.ABIContract(self.state, ALLOC_ABI, alloc_addr)
 
         return contract, allocation, dev_keys, dev_accounts
 
@@ -326,7 +327,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         with self.assertRaises(ContractCreationFailed):
             self.deploy_contract(founder, 0, 105)
 
-    def test_gas_for_mint(self):
+    def test_gas_for_create(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
         self.state.mine(1)
         self.state.block.coinbase = urandom(20)
@@ -334,19 +335,19 @@ class GNTCrowdfundingTest(unittest.TestCase):
         for i, k in enumerate(tester.keys):
             v = random.randrange(1 * denoms.ether, 82000 * denoms.ether)
             m = self.monitor(i, v)
-            self.c.mint(sender=k, value=v)
+            self.c.create(sender=k, value=v)
             costs.append(m.gas())
         print(costs)
 
-        assert max(costs) == 64803
-        assert min(costs) == 64803 - 15000
+        assert max(costs) == 65243
+        assert min(costs) == 65243 - 15000
 
     def test_gas_for_transfer(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
         self.state.mine(1)
         for i, k in enumerate(tester.keys):
             v = random.randrange(15000 * denoms.ether, 82000 * denoms.ether)
-            self.c.mint(sender=k, value=v)
+            self.c.create(sender=k, value=v)
         self.state.mine(2)
         self.c.finalize()
         self.state.mine()
@@ -367,7 +368,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.mine(1)
         for i, k in enumerate(tester.keys):
             v = random.randrange(15000 * denoms.ether, 82000 * denoms.ether)
-            self.c.mint(sender=k, value=v)
+            self.c.create(sender=k, value=v)
         self.state.mine(2)
         self.c.finalize()
         m_addr, _ = self.deploy_migration_contract(addr)
@@ -392,7 +393,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.mine(1)
         for i, k in enumerate(tester.keys):
             v = random.randrange(15000 * denoms.ether, 82000 * denoms.ether)
-            self.c.mint(sender=k, value=v)
+            self.c.create(sender=k, value=v)
         self.state.mine(2)
         self.c.finalize()
         m_addr, _ = self.deploy_migration_contract(addr)
@@ -417,7 +418,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.mine(1)
         for i, k in enumerate(tester.keys):
             v = random.randrange(15000 * denoms.ether, 82000 * denoms.ether)
-            self.c.mint(sender=k, value=v)
+            self.c.create(sender=k, value=v)
         self.state.mine(2)
         self.c.finalize()
         m_addr, _ = self.deploy_migration_contract(addr)
@@ -426,19 +427,19 @@ class GNTCrowdfundingTest(unittest.TestCase):
         lg = self.state.block.gas_used
         self.c.setMigrationAgent(m_addr, sender=factory_key)
         g = self.state.block.gas_used - lg
-        assert g == 44191
+        assert g == 44169
 
         lg = self.state.block.gas_used
         self.c.setMigrationMaster(m_addr, sender=factory_key)
         g = self.state.block.gas_used - lg
-        assert g == 28592
+        assert g == 28570
 
     def test_gas_for_refund(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
         self.state.mine(1)
         for i, k in enumerate(tester.keys):
             v = random.randrange(1 * denoms.ether, 15000 * denoms.ether)
-            self.c.mint(sender=k, value=v)
+            self.c.create(sender=k, value=v)
         self.state.mine(2)
         self.state.block.coinbase = urandom(20)
         costs = []
@@ -448,40 +449,40 @@ class GNTCrowdfundingTest(unittest.TestCase):
             self.c.refund(sender=k)
             costs.append(m.gas())
         print(costs)
-        assert max(costs) == 27135
-        assert min(costs) == 21068
+        assert max(costs) == 27113
+        assert min(costs) == 21057
 
     def test_gas_for_finalize(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
         self.state.mine(1)
         for i, k in enumerate(tester.keys):
             v = random.randrange(15000 * denoms.ether, 82000 * denoms.ether)
-            self.c.mint(sender=k, value=v)
+            self.c.create(sender=k, value=v)
         self.state.mine(2)
         self.state.block.coinbase = urandom(20)
         m = self.monitor(0)
         self.c.finalize(sender=tester.k0)
         g = m.gas()
-        assert g == 88573
+        assert g == 88551
 
     def test_gas_for_total_supply(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
         lg = self.state.block.gas_used
         self.c.totalSupply()
         g = self.state.block.gas_used - lg
-        assert g == 21738
+        assert g == 21716
 
     def test_gas_for_balance_of(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
         self.state.mine(1)
         for i, k in enumerate(tester.keys):
             v = random.randrange(1 * denoms.ether, 15000 * denoms.ether)
-            self.c.mint(sender=k, value=v)
+            self.c.create(sender=k, value=v)
         self.state.mine(2)
         lg = self.state.block.gas_used
         self.c.balanceOf(tester.accounts[0])
         g = self.state.block.gas_used - lg
-        assert g == 23480
+        assert g == 23458
 
     def test_gas_for_funding_active(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
@@ -490,19 +491,19 @@ class GNTCrowdfundingTest(unittest.TestCase):
         lg = self.state.block.gas_used
         self.c.funding()
         g = self.state.block.gas_used - lg
-        assert g == 22116
+        assert g == 22094
 
         self.state.mine(1)
         lg = self.state.block.gas_used
         self.c.funding()
         g = self.state.block.gas_used - lg
-        assert g == 22116
+        assert g == 22094
 
         self.state.mine(2)
         lg = self.state.block.gas_used
         self.c.funding()
         g = self.state.block.gas_used - lg
-        assert g == 22116
+        assert g == 22094
 
     def test_gas_for_funding(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
@@ -510,21 +511,21 @@ class GNTCrowdfundingTest(unittest.TestCase):
         lg = self.state.block.gas_used
         assert self.c.funding()
         g = self.state.block.gas_used - lg
-        assert g == 22116
+        assert g == 22094
 
-    def test_mint(self):
+    def test_create(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
         self.state.mine(1)
         v = 13 * denoms.ether + 13
-        self.c.mint(sender=tester.k3, value=v)
+        self.c.create(sender=tester.k3, value=v)
         assert self.c.balanceOf(tester.a3) == v * self.c.tokenCreationRate()
 
-    def test_mint_raw(self):
+    def test_create_raw(self):
         addr, _ = self.deploy_contract(urandom(20), 1, 2)
         self.state.mine(1)
         v = 13 * denoms.ether + 13
-        mint_fn_id = decode_hex('1249c58b')
-        self.state.send(tester.k3, addr, value=v, evmdata=mint_fn_id)
+        create_fn_id = decode_hex('efc81a8c')
+        self.state.send(tester.k3, addr, value=v, evmdata=create_fn_id)
         assert self.c.balanceOf(tester.a3) == v * self.c.tokenCreationRate()
 
     def test_no_fallback_fn(self):
@@ -548,7 +549,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         # ensure min funding met
         v = self.c.tokenCreationMin() / self.c.tokenCreationRate()
-        self.c.mint(sender=tester.keys[1], value=v)
+        self.c.create(sender=tester.keys[1], value=v)
         self.state.mine()
         self.c.finalize()
 
@@ -565,9 +566,9 @@ class GNTCrowdfundingTest(unittest.TestCase):
             assert self.c.funding()
 
         assert self.state.block.number == self.starting_block + 3
-        self.c.mint(sender=tester.keys[0], value=11)
+        self.c.create(sender=tester.keys[0], value=11)
         assert self.c.funding()
-        self.c.mint(sender=tester.keys[1], value=self.c.tokenCreationCap() / self.c.tokenCreationRate() - 11)
+        self.c.create(sender=tester.keys[1], value=self.c.tokenCreationCap() / self.c.tokenCreationRate() - 11)
         assert self.c.funding()
         for _ in range(8):
             self.state.mine()
@@ -581,24 +582,24 @@ class GNTCrowdfundingTest(unittest.TestCase):
         addr, _ = self.deploy_contract(founder, 2, 4)
         assert self.c.totalSupply() == 0
         with self.assertRaises(TransactionFailed):
-            self.c.mint(sender=tester.keys[3], value=6611)
+            self.c.create(sender=tester.keys[3], value=6611)
         assert self.c.totalSupply() == 0
         self.state.mine(2)
         assert self.c.totalSupply() == 0
-        self.c.mint(sender=tester.keys[3], value=6611)
+        self.c.create(sender=tester.keys[3], value=6611)
         assert self.c.totalSupply() == 6611000
-        self.c.mint(sender=tester.keys[0], value=389)
+        self.c.create(sender=tester.keys[0], value=389)
         assert self.c.totalSupply() == 7000000
         with self.assertRaises(TransactionFailed):
-            self.c.mint(sender=tester.keys[0], value=0)
+            self.c.create(sender=tester.keys[0], value=0)
         assert self.c.totalSupply() == 7000000
-        self.c.mint(sender=tester.keys[7], value=self.c.tokenCreationMin() / self.c.tokenCreationRate())
+        self.c.create(sender=tester.keys[7], value=self.c.tokenCreationMin() / self.c.tokenCreationRate())
         assert self.c.totalSupply() == 7000000 + self.c.tokenCreationMin()
         # mine past funding period
         self.state.mine(3)
         assert self.c.totalSupply() == 7000000 + self.c.tokenCreationMin()
         with self.assertRaises(TransactionFailed):
-            self.c.mint(sender=tester.keys[7], value=10)
+            self.c.create(sender=tester.keys[7], value=10)
         supplyBeforeEndowment = self.c.totalSupply()
         assert supplyBeforeEndowment == 7000000 + self.c.tokenCreationMin()
         self.c.finalize(sender=tester.keys[7])
@@ -609,7 +610,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         assert endowmentPercent < 0.18 + epsilon
         assert endowmentPercent > 0.18 - epsilon
         with self.assertRaises(TransactionFailed):
-            self.c.mint(sender=tester.keys[1], value=10)
+            self.c.create(sender=tester.keys[1], value=10)
         assert self.c.totalSupply() == supplyAfterEndowment
 
     def test_payable_period(self):
@@ -619,16 +620,16 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # before funding
         self.state.mine(1)
         with self.assertRaises(TransactionFailed):
-            self.c.mint(sender=tester.k1, value=value)
+            self.c.create(sender=tester.k1, value=value)
 
         # during funding
         self.state.mine(1)
-        self.c.mint(sender=tester.k1, value=value)
+        self.c.create(sender=tester.k1, value=value)
 
         # post funding
         self.state.mine(2)
         with self.assertRaises(TransactionFailed):
-            self.c.mint(sender=tester.k1, value=value)
+            self.c.create(sender=tester.k1, value=value)
 
     def test_payable_amounts(self):
         c_addr, _ = self.deploy_contract(tester.a0, 1, 2)
@@ -640,22 +641,22 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         # invalid value
         with self.assertRaises(TransactionFailed):
-            self.c.mint(sender=tester.k1, value=0)
+            self.c.create(sender=tester.k1, value=0)
 
         # create 3 ether (value) worth of tokens for k1
-        self.c.mint(sender=tester.k1, value=value)
+        self.c.create(sender=tester.k1, value=value)
         numTokensCreated = value * self.c.tokenCreationRate()
         assert self.number_of_tokens_left() == tokens_max - numTokensCreated
         assert self.c.totalSupply() == numTokensCreated
 
         # create 3 ether (value) worth of tokens for k2
-        self.c.mint(sender=tester.k2, value=value)
+        self.c.create(sender=tester.k2, value=value)
         assert self.number_of_tokens_left() == tokens_max - 2 * numTokensCreated
         assert self.c.totalSupply() == 2 * numTokensCreated
 
         # issue remaining tokens, except 3 * "value" worth of tokens
         value_max = tokens_max / self.c.tokenCreationRate()
-        self.c.mint(sender=tester.k1, value=value_max - 3 * value)
+        self.c.create(sender=tester.k1, value=value_max - 3 * value)
 
         # number of tokens remaining is equal to 1*value (*creationRate)
         assert self.number_of_tokens_left() == numTokensCreated
@@ -663,18 +664,18 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         # more than available tokens
         with self.assertRaises(TransactionFailed):
-            self.c.mint(sender=tester.k2, value=2 * value)
+            self.c.create(sender=tester.k2, value=2 * value)
 
         assert self.is_funding_active() is True
 
         # exact amount of available tokens
-        self.c.mint(sender=tester.k1, value=value)
+        self.c.create(sender=tester.k1, value=value)
         assert self.number_of_tokens_left() == 0
         assert self.c.totalSupply() == tokens_max
 
         # no tokens available
         with self.assertRaises(TransactionFailed):
-            self.c.mint(sender=tester.k2, value=value)
+            self.c.create(sender=tester.k2, value=value)
 
     # Check if the transfer() is locked during the funding period.
     def test_transfer_locked(self):
@@ -689,7 +690,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         value = tokens / self.c.tokenCreationRate()
 
         with self.event_listener(self.c, self.state) as listener:
-            self.c.mint(sender=tester.k1, value=value)
+            self.c.create(sender=tester.k1, value=value)
             assert listener.event('Transfer',
                                   _value=tokens,
                                   _to=tester.a1.encode('hex'),
@@ -740,7 +741,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         # funding
         self.state.mine(1)
-        self.c.mint(sender=tester.k1, value=eths)
+        self.c.create(sender=tester.k1, value=eths)
 
         with self.assertRaises(ContractCreationFailed):
             self.deploy_migration_contract(s_addr)
@@ -819,7 +820,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         self.state.mine(1)
 
         # funding
-        self.c.mint(sender=tester.k1, value=eths)
+        self.c.create(sender=tester.k1, value=eths)
 
         # post funding
         self.state.mine(1)
@@ -873,7 +874,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         # testers purchase tokens
         for i in range(0, n_accounts):
             value = random.randrange(150000 / 9, 150000 / 9 + 81) * denoms.ether
-            self.c.mint(sender=tester.keys[i], value=value)
+            self.c.create(sender=tester.keys[i], value=value)
             values[i] += value
 
         total = sum(values)
@@ -986,7 +987,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
     def test_finalize_funding(self):
         self.deploy_contract(tester.accounts[9], 2, 3)
         contract = self.c
-        allocation = tester.ABIContract(self.state, ALLOC_ABI, contract.lockedAllocation())
+        alloc_addr = mk_contract_address(contract.address, 0)
+        allocation = tester.ABIContract(self.state, ALLOC_ABI, alloc_addr)
 
         # ---------------
         #   PRE FUNDING
@@ -1005,7 +1007,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         eths = [(i + 1) * 10000 * denoms.ether for i in xrange(n_testers)]
 
         for i, e in enumerate(eths):
-            contract.mint(sender=tester.keys[i], value=e)
+            contract.create(sender=tester.keys[i], value=e)
             assert contract.balanceOf(tester.accounts[i]) == contract.tokenCreationRate() * e
 
         with self.assertRaises(TransactionFailed):
@@ -1049,7 +1051,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         eths = [(i + 1) * 10000 * denoms.ether for i in xrange(n_testers)]
 
         for i, e in enumerate(eths):
-            contract.mint(sender=tester.keys[i], value=e)
+            contract.create(sender=tester.keys[i], value=e)
 
         # ---------------
         #  POST FUNDING
@@ -1122,7 +1124,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         addr, _ = self.deploy_contract(tester.a9, 1, 4)
         self.state.mine(1)
         value = 150000 * denoms.ether - 1
-        self.c.mint(sender=tester.k1, value=value)
+        self.c.create(sender=tester.k1, value=value)
         assert self.c.totalSupply() == value * 1000
         self.state.mine(6)
 
@@ -1150,10 +1152,10 @@ class GNTCrowdfundingTest(unittest.TestCase):
         addr, _ = self.deploy_contract(tester.a9, 1, 4)
         self.state.mine(1)
         value = 150000 * denoms.ether - 1
-        self.c.mint(sender=tester.k1, value=value)
+        self.c.create(sender=tester.k1, value=value)
         assert self.c.totalSupply() == value * 1000
         self.state.mine(3)
-        self.c.mint(sender=tester.k2, value=1)
+        self.c.create(sender=tester.k2, value=1)
         assert self.c.totalSupply() == 150000000 * denoms.ether
         self.state.mine(10)
         with self.assertRaises(TransactionFailed):
@@ -1205,7 +1207,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         c_addr = self.deploy_contract_on_wallet(wallet_addr, 1, 2)
         value = int(self.c.tokenCreationMin() / self.c.tokenCreationRate())
         self.state.mine(1)
-        self.c.mint(sender=tester.k1, value=value)
+        self.c.create(sender=tester.k1, value=value)
         self.state.mine(3)
         extra = 0
         self.wallet.set_extra_work(extra)
@@ -1224,7 +1226,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
         c_addr = self.deploy_contract_on_wallet(wallet_addr, 1, 2)
         value = int(self.c.tokenCreationMin() / self.c.tokenCreationRate())
         self.state.mine(1)
-        self.c.mint(sender=tester.k1, value=value)
+        self.c.create(sender=tester.k1, value=value)
         self.state.mine(3)
         # extra>0 will cause Wallet fallback function to burn gas;
         # send executed from contract has hardcoded limit of gas (2300?)
