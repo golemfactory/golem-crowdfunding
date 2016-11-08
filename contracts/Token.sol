@@ -2,10 +2,12 @@ pragma solidity ^0.4.4;
 
 import "./GNTAllocation.sol";
 
+/// @title Migration Agent interface
 contract MigrationAgent {
     function migrateFrom(address _from, uint256 _value);
 }
 
+/// @title Golem Network Token (GNT) - crowdfunding code for Golem Project
 contract GolemNetworkToken {
     string public constant name = "Golem Network Token";
     string public constant symbol = "GNT";
@@ -29,7 +31,7 @@ contract GolemNetworkToken {
     // Has control over token migration to next version of token.
     address public migrationMaster;
 
-    GNTAllocation public lockedAllocation;
+    GNTAllocation lockedAllocation;
 
     // The current total token supply.
     uint256 totalTokens;
@@ -60,9 +62,13 @@ contract GolemNetworkToken {
         fundingEndBlock = _fundingEndBlock;
     }
 
-    // Transfer GNT tokens from sender's account to provided account address.
-    // This function is disabled during the funding.
-    // Required state: Operational
+    /// @notice Transfer `_value` GNT tokens from sender's account
+    /// `msg.sender` to provided account address `_to`.
+    /// @notice This function is disabled during the funding.
+    /// @dev Required state: Operational
+    /// @param _to The address of the tokens recipient
+    /// @param _value The amount of token to be transferred
+    /// @return Whether the transfer was successful or not
     function transfer(address _to, uint256 _value) returns (bool) {
         // Abort if not in Operational state.
         if (funding) throw;
@@ -88,6 +94,9 @@ contract GolemNetworkToken {
 
     // Token migration support:
 
+    /// @notice Migrate tokens to the new token contract.
+    /// @dev Required state: Operational Migration
+    /// @param _value The amount of token to be migrated
     function migrate(uint256 _value) external {
         // Abort if not in Operational Migration state.
         if (funding) throw;
@@ -104,9 +113,11 @@ contract GolemNetworkToken {
         Migrate(msg.sender, migrationAgent, _value);
     }
 
-    // Set address of migration target contract and enable migration process.
-    // Required state: Operational Normal
-    // State transition: -> Operational Migration
+    /// @notice Set address of migration target contract and enable migration
+	/// process.
+    /// @dev Required state: Operational Normal
+    /// @dev State transition: -> Operational Migration
+    /// @param _agent The address of the MigrationAgent contract
     function setMigrationAgent(address _agent) external {
         // Abort if not in Operational Normal state.
         if (funding) throw;
@@ -123,10 +134,10 @@ contract GolemNetworkToken {
 
     // Crowdfunding:
 
-    // Create tokens when funding is active.
-    // Required state: Funding Active
-    // State transition: -> Funding Success (only if cap reached)
-    function mint() payable external {
+    /// @notice Create tokens when funding is active.
+    /// @dev Required state: Funding Active
+    /// @dev State transition: -> Funding Success (only if cap reached)
+    function create() payable external {
         // Abort if not in Funding Active state.
         // The checks are split (instead of using or operator) because it is
         // cheaper this way.
@@ -149,11 +160,12 @@ contract GolemNetworkToken {
         Transfer(0, msg.sender, numTokens);
     }
 
-    // If cap was reached or crowdfunding has ended then:
-    // create GNT for the Golem Factory and developer,
-    // transfer ETH to the Golem Factory address.
-    // Required state: Funding Success
-    // State transition: -> Operational Normal
+    /// @notice Finalize crowdfunding
+    /// @dev If cap was reached or crowdfunding has ended then:
+    /// create GNT for the Golem Factory and developer,
+    /// transfer ETH to the Golem Factory address.
+    /// @dev Required state: Funding Success
+    /// @dev State transition: -> Operational Normal
     function finalize() external {
         // Abort if not in Funding Success state.
         if (!funding) throw;
@@ -179,9 +191,9 @@ contract GolemNetworkToken {
         if (!golemFactory.send(this.balance)) throw;
     }
 
-    // Get back the ether sent during the funding in case the funding has not
-    // reached the minimum level.
-    // Required state: Funding Failure
+    /// @notice Get back the ether sent during the funding in case the funding
+    /// has not reached the minimum level.
+    /// @dev Required state: Funding Failure
     function refund() external {
         // Abort if not in Funding Failure state.
         if (!funding) throw;
