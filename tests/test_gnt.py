@@ -1054,6 +1054,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
 
         dev_shares = [2500, 730, 730, 730, 730, 730, 630, 630, 630, 630, 310,
                       138, 135, 100, 100, 100, 100, 70, 70, 70, 70, 42, 25]
+        assert sum(dev_shares) == 10000
 
         self.state.mine(1)
 
