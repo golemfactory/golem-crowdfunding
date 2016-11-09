@@ -1053,7 +1053,8 @@ class GNTCrowdfundingTest(unittest.TestCase):
     def test_finalize_and_unlock(self):
 
         dev_shares = [2500, 730, 730, 730, 730, 730, 630, 630, 630, 630, 310,
-                      153, 150, 100, 100, 100, 70, 70, 70, 70, 70, 42, 25]
+                      138, 135, 100, 100, 100, 100, 70, 70, 70, 70, 42, 25]
+        assert sum(dev_shares) == 10000
 
         self.state.mine(1)
 
@@ -1286,9 +1287,15 @@ class GNTContractHelperTest(unittest.TestCase):
         # remove import
         alloc_helper.sub([''], regex=IMPORT_TOKEN_REGEX)
 
-        assert alloc_helper.findall()[:6] == ['0xde00', '0xde01', '0xde02', '0xde03', '0xde04', '0xde05']
+        orig_addresses = ['0xA09EaC132Cb28A5a7189d989c69F9E472bC34B6F',
+                          '0xd7406E50b73972Fa4aa533a881af68B623Ba3F66',
+                          '0xd15356D05A7990dE7eC94304B0fD538e550c09C0',
+                          '0x3971D17B62b825b151760E2451F818BfB64489A7']
+        assert alloc_helper.findall()[:4] == orig_addresses
         alloc_helper.sub(['0xad00', '0xad01', '0xad02'])
-        assert alloc_helper.findall()[:6] == ['0xad00', '0xad01', '0xad02', '0xde03', '0xde04', '0xde05']
+        changed_addresses = ['0xad00', '0xad01', '0xad02',
+                             '0x3971D17B62b825b151760E2451F818BfB64489A7']
+        assert alloc_helper.findall()[:4] == changed_addresses
 
         # replace import with contract source
         gnt_helper = ContractHelper(GNT_CONTRACT_PATH)
