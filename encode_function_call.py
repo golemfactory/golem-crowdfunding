@@ -15,6 +15,9 @@ def methods(name, contract_abi, sought=None, args=None):
     args = args or []
     printed = False
 
+    if not isinstance(args, (list, tuple)):
+        args = [args]
+
     for fn in translator.function_data:
         if not sought or fn.lower() == sought.lower():
 
@@ -25,8 +28,10 @@ def methods(name, contract_abi, sought=None, args=None):
             try:
                 encoded = translator.encode_function_call(fn, args).encode('hex')
                 print FMT.format(fn, encoded)
-            except Exception:
-                print FMT.format(fn, "INVALID ARGUMENTS")
+            except Exception as exc:
+                import traceback
+                traceback.print_exc()
+                print FMT.format(fn, "INVALID ARGUMENTS {}".format(exc))
 
 sought_method = None
 arguments = None
