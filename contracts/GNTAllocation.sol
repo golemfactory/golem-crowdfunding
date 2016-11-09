@@ -2,7 +2,7 @@ pragma solidity ^0.4.4;
 
 import "./Token.sol";
 
-/// @title GNT Allocation - Time-locked vault of tokens allocated 
+/// @title GNT Allocation - Time-locked vault of tokens allocated
 /// to developers and Golem Factory
 contract GNTAllocation {
     // Total number of allocations to distribute additional tokens among
@@ -38,13 +38,13 @@ contract GNTAllocation {
         allocations[0xde08] =  630;
         allocations[0xde09] =  630;
         allocations[0xde10] =  310; //  3.1% of developers' allocations.
-        allocations[0xde11] =  153; //  1.53% of developers' allocations.
-        allocations[0xde12] =  150; //  1.5% of developers' allocations.
+        allocations[0xde11] =  138; //  1.38% of developers' allocations.
+        allocations[0xde12] =  135; //  1.35% of developers' allocations.
         allocations[0xde13] =  100; //  1.0% of developers' allocations.
         allocations[0xde14] =  100;
         allocations[0xde15] =  100;
-        allocations[0xde16] =   70; //  0.7% of developers' allocations.
-        allocations[0xde17] =   70;
+        allocations[0xde16] =  100;
+        allocations[0xde17] =   70; //  0.7% of developers' allocations.
         allocations[0xde18] =   70;
         allocations[0xde19] =   70;
         allocations[0xde20] =   70;
@@ -52,7 +52,7 @@ contract GNTAllocation {
         allocations[0xde22] =   25; //  0.25% of developers' allocations.
     }
 
-    /// @notice Allow developer to unlock allocated tokens by transferring them 
+    /// @notice Allow developer to unlock allocated tokens by transferring them
     /// from GNTAllocation to developer's address.
     function unlock() external {
         if (now < unlockedAt) throw;

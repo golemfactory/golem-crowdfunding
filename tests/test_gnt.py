@@ -1053,7 +1053,7 @@ class GNTCrowdfundingTest(unittest.TestCase):
     def test_finalize_and_unlock(self):
 
         dev_shares = [2500, 730, 730, 730, 730, 730, 630, 630, 630, 630, 310,
-                      153, 150, 100, 100, 100, 70, 70, 70, 70, 70, 42, 25]
+                      138, 135, 100, 100, 100, 100, 70, 70, 70, 70, 42, 25]
 
         self.state.mine(1)
 
