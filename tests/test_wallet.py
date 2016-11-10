@@ -56,20 +56,146 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
         args = t.encode_constructor_arguments((owners, required))
         addr = self.state.evm(WALLET_INIT + args,
                               sender=owner_key)
-        return tester.ABIContract(self.state, WALLET_ABI, addr)
+        return tester.ABIContract(self.state, WALLET_ABI, addr), t
 
     def deploy_wallet(self, n_wallet_owners, required=1, creator_idx=0):
         _range = range(creator_idx, n_wallet_owners)
         wallet_owners = [tester.accounts[i] for i in _range]
         wallet_owner_keys = [tester.keys[i] for i in _range]
-        wallet = self.__deploy_wallet(tester.keys[creator_idx], wallet_owners,
-                                      required=required)
-        return wallet, wallet_owners, wallet_owner_keys
+        wallet, t = self.__deploy_wallet(tester.keys[creator_idx], wallet_owners,
+                                         required=required)
+        return wallet, wallet_owners, wallet_owner_keys, t
+
+    def test_owner_2of3_add_rem(self):
+        n_wallet_owners = 3
+        wallet, wallet_owners, wallet_owner_keys, translator = self.deploy_wallet(n_wallet_owners,
+                                                                                  required=2)
+
+        self.state.mine(1)
+
+        new_acc = tester.accounts[9]
+
+        assert not wallet.isOwner(new_acc)
+
+        add_new = translator.encode_function_call('addOwner', [new_acc])
+        wallet.submitTransaction(wallet.address, 0, add_new,
+                                 10001, sender=tester.keys[0])
+        wallet.submitTransaction(wallet.address, 0, add_new,
+                                 10001, sender=tester.keys[1])
+
+        assert wallet.isOwner(new_acc)
+
+        self.state.mine(1)
+
+        old_acc = tester.accounts[0]
+
+        assert wallet.isOwner(old_acc)
+
+        rem_old = translator.encode_function_call('removeOwner', [old_acc])
+        wallet.submitTransaction(wallet.address, 0, rem_old,
+                                 10001, sender=tester.keys[1])
+        wallet.submitTransaction(wallet.address, 0, rem_old,
+                                 10001, sender=tester.keys[9])
+
+        assert not wallet.isOwner(old_acc)
+
+    def test_owner_2of3_rem_add(self):
+        n_wallet_owners = 3
+        wallet, wallet_owners, wallet_owner_keys, translator = self.deploy_wallet(n_wallet_owners,
+                                                                                  required=2)
+        self.state.mine(1)
+
+        old_acc = tester.accounts[0]
+        assert wallet.isOwner(old_acc)
+
+        rem_old = translator.encode_function_call('removeOwner', [old_acc])
+        wallet.submitTransaction(wallet.address, 0, rem_old,
+                                 10001, sender=tester.keys[1])
+        wallet.submitTransaction(wallet.address, 0, rem_old,
+                                 10001, sender=tester.keys[2])
+        assert not wallet.isOwner(old_acc)
+
+        self.state.mine(1)
+        new_acc = tester.accounts[9]
+        assert not wallet.isOwner(new_acc)
+        add_new = translator.encode_function_call('addOwner', [new_acc])
+        wallet.submitTransaction(wallet.address, 0, add_new,
+                                 10001, sender=tester.keys[1])
+        wallet.submitTransaction(wallet.address, 0, add_new,
+                                 10001, sender=tester.keys[2])
+        assert wallet.isOwner(new_acc)
+
+    def test_owner_3of5_add_rem(self):
+        n_wallet_owners = 5
+        wallet, wallet_owners, wallet_owner_keys, translator = self.deploy_wallet(n_wallet_owners,
+                                                                                  required=3)
+
+        self.state.mine(1)
+
+        new_acc = tester.accounts[9]
+
+        assert not wallet.isOwner(new_acc)
+
+        add_new = translator.encode_function_call('addOwner', [new_acc])
+        wallet.submitTransaction(wallet.address, 0, add_new,
+                                 10001, sender=tester.keys[0])
+        wallet.submitTransaction(wallet.address, 0, add_new,
+                                 10001, sender=tester.keys[1])
+        wallet.submitTransaction(wallet.address, 0, add_new,
+                                 10001, sender=tester.keys[2])
+
+        assert wallet.isOwner(new_acc)
+
+        self.state.mine(1)
+
+        old_acc = tester.accounts[0]
+
+        assert wallet.isOwner(old_acc)
+
+        rem_old = translator.encode_function_call('removeOwner', [old_acc])
+        wallet.submitTransaction(wallet.address, 0, rem_old,
+                                 10001, sender=tester.keys[1])
+        wallet.submitTransaction(wallet.address, 0, rem_old,
+                                 10001, sender=tester.keys[2])
+        wallet.submitTransaction(wallet.address, 0, rem_old,
+                                 10001, sender=tester.keys[9])
+
+        assert not wallet.isOwner(old_acc)
+
+    def test_owner_3of5_rem_add(self):
+        n_wallet_owners = 5
+        wallet, wallet_owners, wallet_owner_keys, translator = self.deploy_wallet(n_wallet_owners,
+                                                                                  required=3)
+        self.state.mine(1)
+
+        old_acc = tester.accounts[0]
+        assert wallet.isOwner(old_acc)
+
+        rem_old = translator.encode_function_call('removeOwner', [old_acc])
+        wallet.submitTransaction(wallet.address, 0, rem_old,
+                                 10001, sender=tester.keys[1])
+        wallet.submitTransaction(wallet.address, 0, rem_old,
+                                 10001, sender=tester.keys[2])
+        wallet.submitTransaction(wallet.address, 0, rem_old,
+                                 10001, sender=tester.keys[3])
+        assert not wallet.isOwner(old_acc)
+
+        self.state.mine(1)
+        new_acc = tester.accounts[9]
+        assert not wallet.isOwner(new_acc)
+        add_new = translator.encode_function_call('addOwner', [new_acc])
+        wallet.submitTransaction(wallet.address, 0, add_new,
+                                 10001, sender=tester.keys[1])
+        wallet.submitTransaction(wallet.address, 0, add_new,
+                                 10001, sender=tester.keys[2])
+        wallet.submitTransaction(wallet.address, 0, add_new,
+                                 10001, sender=tester.keys[3])
+        assert wallet.isOwner(new_acc)
 
     def test_deploy(self):
         n_wallet_owners = 3
 
-        wallet, wallet_owners, wallet_owner_keys = self.deploy_wallet(n_wallet_owners)
+        wallet, wallet_owners, wallet_owner_keys, _ = self.deploy_wallet(n_wallet_owners)
         wallet_owner_balances = [self.state.block.get_balance(wallet_owners[i])
                                  for i in xrange(n_wallet_owners)]
 
@@ -89,7 +215,7 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
 
     def test_finalize(self):
         n_wallet_owners = 3
-        wallet, wallet_owners, wallet_owner_keys = self.deploy_wallet(n_wallet_owners, required=2)
+        wallet, wallet_owners, wallet_owner_keys, _ = self.deploy_wallet(n_wallet_owners, required=2)
         self.state.mine(1)
         contract, translator = self.deploy_contract(2, 3, founder=wallet.address)
 
@@ -114,7 +240,7 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
         contract, translator = self.deploy_contract(2, 3, creator_idx=1)
 
         n_wallet_owners = 3
-        wallet, wallet_owners, wallet_owner_keys = self.deploy_wallet(n_wallet_owners, required=2)
+        wallet, wallet_owners, wallet_owner_keys, _ = self.deploy_wallet(n_wallet_owners, required=2)
 
         # Send eth to the wallet contract
         to_send = 10 * denoms.ether
@@ -154,7 +280,7 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
 
     def test_migration(self):
         n_wallet_owners = 3
-        wallet, wallet_owners, wallet_owner_keys = self.deploy_wallet(n_wallet_owners, required=2)
+        wallet, wallet_owners, wallet_owner_keys, _ = self.deploy_wallet(n_wallet_owners, required=2)
         self.state.mine(1)
         contract, translator = self.deploy_contract(2, 3, migration_master=wallet.address)
         wallet_balance_init = self.state.block.get_balance(wallet.address)
