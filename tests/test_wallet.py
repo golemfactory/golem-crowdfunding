@@ -75,21 +75,29 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
 
         new_acc = tester.accounts[9]
 
+        assert not wallet.isOwner(new_acc)
+
         add_new = translator.encode_function_call('addOwner', [new_acc])
         wallet.submitTransaction(wallet.address, 0, add_new,
                                  10001, sender=tester.keys[0])
         wallet.submitTransaction(wallet.address, 0, add_new,
                                  10001, sender=tester.keys[1])
 
+        assert wallet.isOwner(new_acc)
+
         self.state.mine(1)
 
         old_acc = tester.accounts[0]
+
+        assert wallet.isOwner(old_acc)
 
         rem_old = translator.encode_function_call('removeOwner', [old_acc])
         wallet.submitTransaction(wallet.address, 0, rem_old,
                                  10001, sender=tester.keys[1])
         wallet.submitTransaction(wallet.address, 0, rem_old,
                                  10001, sender=tester.keys[9])
+
+        assert not wallet.isOwner(old_acc)
 
     def test_owner_rem_add(self):
         n_wallet_owners = 3
@@ -98,20 +106,24 @@ class GolemNetworkTokenWalletTest(unittest.TestCase):
         self.state.mine(1)
 
         old_acc = tester.accounts[0]
+        assert wallet.isOwner(old_acc)
 
         rem_old = translator.encode_function_call('removeOwner', [old_acc])
         wallet.submitTransaction(wallet.address, 0, rem_old,
                                  10001, sender=tester.keys[1])
         wallet.submitTransaction(wallet.address, 0, rem_old,
                                  10001, sender=tester.keys[2])
+        assert not wallet.isOwner(old_acc)
 
         self.state.mine(1)
         new_acc = tester.accounts[9]
+        assert not wallet.isOwner(new_acc)
         add_new = translator.encode_function_call('addOwner', [new_acc])
         wallet.submitTransaction(wallet.address, 0, add_new,
                                  10001, sender=tester.keys[1])
         wallet.submitTransaction(wallet.address, 0, add_new,
                                  10001, sender=tester.keys[2])
+        assert wallet.isOwner(new_acc)
 
     def test_deploy(self):
         n_wallet_owners = 3
