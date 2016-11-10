@@ -1287,7 +1287,7 @@ class GNTContractHelperTest(unittest.TestCase):
         # remove import
         alloc_helper.sub([''], regex=IMPORT_TOKEN_REGEX)
 
-        orig_addresses = ['0xA09EaC132Cb28A5a7189d989c69F9E472bC34B6F',
+        orig_addresses = ['0x9d3F257827B17161a098d380822fa2614FF540c8',
                           '0xd7406E50b73972Fa4aa533a881af68B623Ba3F66',
                           '0xd15356D05A7990dE7eC94304B0fD538e550c09C0',
                           '0x3971D17B62b825b151760E2451F818BfB64489A7']
