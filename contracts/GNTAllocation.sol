@@ -27,13 +27,13 @@ contract GNTAllocation {
         allocations[_golemFactory] = 20000; // 12/18 pp of 30000 allocations.
 
         // For developers:
-        allocations[0xA09EaC132Cb28A5a7189d989c69F9E472bC34B6F] = 2500; // 25.0% of developers' allocations (10000).
+        allocations[0x9d3F257827B17161a098d380822fa2614FF540c8] = 2500; // 25.0% of developers' allocations (10000).
         allocations[0xd7406E50b73972Fa4aa533a881af68B623Ba3F66] =  730; //  7.3% of developers' allocations.
         allocations[0xd15356D05A7990dE7eC94304B0fD538e550c09C0] =  730;
         allocations[0x3971D17B62b825b151760E2451F818BfB64489A7] =  730;
         allocations[0x95e337d09f1bc67681b1cab7ed1125ea2bae5ca8] =  730;
         allocations[0x0025C58dB686b8CEce05CB8c50C1858b63Aa396E] =  730;
-        allocations[0xde06] =  630; //  6.3% of developers' allocations.
+        allocations[0xB127FC62dE6ca30aAc9D551591daEDdeBB2eFD7A] =  630; //  6.3% of developers' allocations.
         allocations[0x21AF2E2c240a71E9fB84e90d71c2B2AddE0D0e81] =  630;
         allocations[0x682AA1C3b3E102ACB9c97B861d595F9fbfF0f1B8] =  630;
         allocations[0x6edd429c77803606cBd6Bb501CC701a6CAD6be01] =  630;
