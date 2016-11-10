@@ -4,10 +4,10 @@ import subprocess
 from ethereum._solidity import compile_contract
 from ethereum.abi import ContractTranslator
 
-GOLEM_FACTORY = 'eab3377047c242d8dd2a8d8a4aa1e9f77cf809bb'
-MIGRATION_MASTER = '0x7e2a4fe6e8f1c243d2b7e547d517834989e8e463'
-START_BLOCK = 2000000
-END_BLOCK = 2000001
+GOLEM_FACTORY = '0x7da82C7AB4771ff031b66538D2fB9b0B047f6CF9'
+MIGRATION_MASTER = '0x7da82C7AB4771ff031b66538D2fB9b0B047f6CF9'
+START_BLOCK = 2607800
+END_BLOCK = 2734100
 
 version_info = subprocess.check_output(['solc', '--version'])
 print(version_info)
