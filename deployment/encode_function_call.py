@@ -28,10 +28,8 @@ def methods(name, contract_abi, sought=None, args=None):
             try:
                 encoded = translator.encode_function_call(fn, args).encode('hex')
                 print FMT.format(fn, encoded)
-            except Exception as exc:
-                import traceback
-                traceback.print_exc()
-                print FMT.format(fn, "INVALID ARGUMENTS {}".format(exc))
+            except Exception:
+                print FMT.format(fn, "INVALID ARGUMENTS")
 
 sought_method = None
 arguments = None
@@ -43,6 +41,7 @@ if len(sys.argv) == 3:
     arguments = eval(sys.argv[2])
 elif len(sys.argv) > 3:
     print "Invalid number of arguments"
+    sys.exit(1)
 
 print FMT.format("-- Method", sought_method)
 print FMT.format("-- Arguments", arguments)
