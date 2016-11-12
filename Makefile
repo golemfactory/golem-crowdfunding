@@ -9,7 +9,7 @@ unit: build
 proxy: build
 	pytest tests/test_proxy.py
 
-build: tests/GolemNetworkToken.abi tests/GolemNetworkToken.bin tests/GNTTargetToken.bin tests/GNTTargetToken.abi tests/MigrationAgent.bin tests/MigrationAgent.abi tests/BadWallet.bin tests/BadWallet.abi tests/ProxyAccount.bin tests/ProxyAccount.abi tests/ProxyFactoryAccount.bin tests/ProxyFactoryAccount.abi
+build: tests/GolemNetworkToken.abi tests/GolemNetworkToken.bin tests/GNTTargetToken.bin tests/GNTTargetToken.abi tests/MigrationAgent.bin tests/MigrationAgent.abi tests/BadWallet.bin tests/BadWallet.abi tests/ProxyAccount.bin tests/ProxyAccount.abi tests/ProxyFactoryAccount.bin tests/ProxyFactoryAccount.abi tests/GNTAllocation.bin tests/GNTAllocation.abi tests/MultiSigWallet.bin tests/MultiSigWallet.abi tests/Wallet.bin tests/Wallet.abi
 
 tests/GolemNetworkToken.bin: contracts/Token.sol
 	solc --bin --abi --optimize contracts/Token.sol | awk '/======= GolemNetworkToken =======/,/======= MigrationAgent =======/' | grep '[01-9a-f]\{10,\}' > tests/GolemNetworkToken.bin
@@ -30,10 +30,10 @@ tests/MigrationAgent.abi: contracts/ExampleMigration.sol
 	solc --bin --abi --optimize contracts/ExampleMigration.sol | awk '/======= MigrationAgent =======/,0' | grep '\[.*\]' > tests/MigrationAgent.abi
 
 tests/BadWallet.bin: contracts/BadWallet.sol
-	solc --bin --abi --optimize contracts/BadWallet.sol | awk '/======= BadWallet =======/,/======= GolemNetworkToken =======/' | grep '[01-9a-f]\{10,\}' > tests/BadWallet.bin
+	solc --bin --abi --optimize contracts/BadWallet.sol | awk '/======= BadWallet =======/,/======= GNTAllocation =======/' | grep '[01-9a-f]\{10,\}' > tests/BadWallet.bin
 
 tests/BadWallet.abi: contracts/BadWallet.sol
-	solc --bin --abi --optimize contracts/BadWallet.sol | awk '/======= BadWallet =======/,/======= GolemNetworkToken =======/' | grep '\[.*\]' > tests/BadWallet.abi
+	solc --bin --abi --optimize contracts/BadWallet.sol | awk '/======= BadWallet =======/,/======= GNTAllocation =======/' | grep '\[.*\]' > tests/BadWallet.abi
 
 tests/ProxyAccount.bin: contracts/ProxyAccount.sol
 	solc --bin --abi --optimize contracts/ProxyAccount.sol | awk '/======= TimeLockedGNTProxyAccount =======/,/======= TimeLockedGolemFactoryProxyAccount =======/' | grep '[01-9a-f]\{10,\}' > tests/ProxyAccount.bin
@@ -47,5 +47,25 @@ tests/ProxyFactoryAccount.bin: contracts/ProxyAccount.sol
 tests/ProxyFactoryAccount.abi: contracts/ProxyAccount.sol
 	solc --bin --abi --optimize contracts/ProxyAccount.sol | awk '/======= TimeLockedGolemFactoryProxyAccount =======/,0' | grep '\[.*\]' > tests/ProxyFactoryAccount.abi
 
+tests/GNTAllocation.bin: contracts/GNTAllocation.sol
+	solc --bin --abi --optimize contracts/GNTAllocation.sol | awk '/======= GNTAllocation =======/,/======= GolemNetworkToken =======/' | grep '[01-9a-f]\{10,\}' > tests/GNTAllocation.bin
+
+tests/GNTAllocation.abi: contracts/GNTAllocation.sol
+	solc --bin --abi --optimize contracts/GNTAllocation.sol | awk '/======= GNTAllocation =======/,/======= GolemNetworkToken =======/' | grep '\[.*\]' > tests/GNTAllocation.abi
+
+tests/Wallet.bin: contracts/Wallet.sol
+	solc --bin --abi --optimize contracts/Wallet.sol | awk '/======= Wallet =======/,/======= daylimit =======/' | grep '[01-9a-f]\{10,\}' > tests/Wallet.bin
+
+tests/Wallet.abi: contracts/Wallet.sol
+	solc --bin --abi --optimize contracts/Wallet.sol | awk '/======= Wallet =======/,/======= daylimit =======/' | grep '\[.*\]' > tests/Wallet.abi
+
+tests/MultiSigWallet.bin: contracts/MultiSigWallet.sol
+	solc --bin --abi --optimize contracts/MultiSigWallet.sol | grep '[01-9a-f]\{10,\}' > tests/MultiSigWallet.bin
+
+tests/MultiSigWallet.abi: contracts/MultiSigWallet.sol
+	solc --bin --abi --optimize contracts/MultiSigWallet.sol | grep '\[.*\]' > tests/MultiSigWallet.abi
+
+
+
 clean:
-	git checkout -- tests/GolemNetworkToken.bin tests/GolemNetworkToken.abi tests/GNTTargetToken.bin tests/GNTTargetToken.abi tests/MigrationAgent.bin tests/MigrationAgent.abi tests/ProxyAccount.bin tests/ProxyAccount.abi tests/ProxyFactoryAccount.bin tests/ProxyFactoryAccount.abi
+	rm -f tests/*.bin tests/*.abi

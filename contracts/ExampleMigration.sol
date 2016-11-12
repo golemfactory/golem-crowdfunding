@@ -1,4 +1,4 @@
-pragma solidity ^0.4.1;
+pragma solidity ^0.4.4;
 
 import * as Source from "./Token.sol";
 
@@ -67,7 +67,7 @@ contract MigrationAgent {
         owner = msg.sender;
         gntSourceToken = _gntSourceToken;
 
-        if (!Source.GolemNetworkToken(gntSourceToken).finalized()) throw;
+        if (Source.GolemNetworkToken(gntSourceToken).funding()) throw;
 
         tokenSupply = Source.GolemNetworkToken(gntSourceToken).totalSupply();
     }
